@@ -92,10 +92,8 @@ export const setUserIdFromToken = async (
 		return
 	}
 
-	const headerIss = readHeader({ req, name: 'iss' })
 	const headerAzp = readHeader({ req, name: 'azp' })
 	const tokenPayload = decodeJwtPayload({ token })
-	const iss = headerIss ?? tokenPayload?.iss
 	const azp = headerAzp ?? tokenPayload?.azp
 
 	try {

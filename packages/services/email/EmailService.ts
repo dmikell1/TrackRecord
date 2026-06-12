@@ -75,8 +75,9 @@ export class EmailService {
 				}
 			)
 		} catch (error) {
-			this.reportingService.error('Failed to send email', {
-				error,
+			this.reportingService.error({
+				message: 'Failed to send email',
+				error: error as Error,
 				to,
 				subject
 			})

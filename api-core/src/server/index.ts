@@ -64,7 +64,7 @@ export const startApolloServer = async (): Promise<void> => {
 	let schema = makeExecutableSchema({ typeDefs, resolvers })
 	schema = applyMiddleware(schema, schemaPermissions)
 
-	await connectToPostgresDatabase({ connectionString: POSTGRES_URL })
+	await connectToPostgresDatabase({ dbString: POSTGRES_URL })
 
 	const httpServer = http.createServer(app)
 	const wsServer = new WebSocketServer({

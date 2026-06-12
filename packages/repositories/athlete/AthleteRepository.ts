@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm'
 import { inject, injectable, singleton } from 'tsyringe'
 
+import { getDb } from '@packages/database/createPostgresConnection'
 import { athletes } from '@packages/database/schema'
 import { BaseRepository } from '@packages/repositories/BaseRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
@@ -91,7 +92,6 @@ export class AthleteRepository extends BaseRepository<
 			const normalizedEmails = [
 				...new Set(emails.map(email => email.toLowerCase()))
 			]
-			const { getDb } = await import('@packages/database/createPostgresConnection')
 			const db = getDb()
 			const rows = await db
 				.select()
@@ -127,7 +127,6 @@ export class AthleteRepository extends BaseRepository<
 		}
 
 		try {
-			const { getDb } = await import('@packages/database/createPostgresConnection')
 			const db = getDb()
 			const values = data.map(athlete => ({
 				teamId: athlete.teamId,
@@ -150,7 +149,6 @@ export class AthleteRepository extends BaseRepository<
 
 	public async softDelete({ id, teamId }: { id: string; teamId: string }): Promise<AthleteInterface | null> {
 		try {
-			const { getDb } = await import('@packages/database/createPostgresConnection')
 			const db = getDb()
 			const [row] = await db
 				.update(athletes)

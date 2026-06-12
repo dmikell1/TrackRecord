@@ -1,6 +1,13 @@
 import type { Context } from '@packages/types'
 import type { TrackRecordNotificationInterface } from '@packages/types/trackRecordNotification'
 
+type NotificationGraphQLOutput = Omit<
+	TrackRecordNotificationInterface,
+	'payload'
+> & {
+	payload: string | null
+}
+
 interface NotificationsArgs {
 	team: string
 	limit?: number
@@ -10,7 +17,7 @@ export const notifications = async (
 	_parent: unknown,
 	args: NotificationsArgs,
 	{ req, trackRecordNotificationService, reportingService }: Context
-): Promise<(TrackRecordNotificationInterface & { payload: string | null })[]> => {
+): Promise<NotificationGraphQLOutput[]> => {
 	reportingService.startTrace({ op: 'notifications', name: 'notifications' })
 	try {
 		const results = await trackRecordNotificationService.findNotifications({

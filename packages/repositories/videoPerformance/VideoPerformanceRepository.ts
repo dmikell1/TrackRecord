@@ -1,4 +1,4 @@
-import { and, eq, inArray, type SQL } from 'drizzle-orm'
+import { eq, type SQL } from 'drizzle-orm'
 import { inject, injectable, singleton } from 'tsyringe'
 
 import { videoPerformances } from '@packages/database/schema'
