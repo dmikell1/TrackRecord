@@ -25,3 +25,4 @@ const startApp = async (): Promise<void> => {
 	}
 }
 startApp()
+// test
