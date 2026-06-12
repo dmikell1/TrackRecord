@@ -1,0 +1,41 @@
+{
+	"extends": "@tsconfig/node20/tsconfig.json",
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"outDir": "build",
+		"allowSyntheticDefaultImports": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"preserveConstEnums": true,
+		"sourceMap": true,
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"isolatedModules": true,
+		"noImplicitAny": false,
+		"strictPropertyInitialization": false,
+		"resolveJsonModule": true,
+		"baseUrl": ".",
+		"paths": {
+			"@api-core/*": [
+				"api-core/*"
+			],
+			"@api-prospecting/*": [
+				"api-prospecting/*"
+			],
+			"@test-utils/*": [
+				"test-utils/*"
+			],
+			"@packages/*": [
+				"packages/*"
+			],
+			"@builders/*": [
+				"test-utils/builders/*"
+			]
+		},
+		"typeRoots": [
+			"./node_modules/@types"
+		],
+		"inlineSources": true,
+		"sourceRoot": "/"
+	}
+}

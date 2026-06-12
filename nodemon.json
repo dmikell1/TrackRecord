@@ -1,0 +1,7 @@
+{
+  "watch": ["api-core"],
+  "ext": "ts, tsx, graphql",
+  "ignore": ["src/**/*.test.ts"],
+  "exec": "./scripts/dev.sh",
+  "inspect": true
+}

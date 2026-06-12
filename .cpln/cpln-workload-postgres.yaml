@@ -1,0 +1,73 @@
+kind: workload
+name: postgres-postgres
+description: Postgres Database
+tags:
+  app.cpln.io/instance: postgres
+  app.cpln.io/managed-by: Helm
+  app.cpln.io/name: postgres
+  app.cpln.io/version: '18'
+  cpln/marketplace: 'true'
+  cpln/marketplace-template: postgres
+  cpln/marketplace-template-version: 3.1.0
+spec:
+  type: stateful
+  containers:
+    - name: postgresql
+      cpu: 400m
+      env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pg_data
+        - name: POSTGRES_DB
+          value: trackrecord
+        - name: POSTGRES_PASSWORD
+          value: cpln://secret/postgres-pg-config.password
+        - name: POSTGRES_USER
+          value: cpln://secret/postgres-pg-config.username
+      image: pgvector/pgvector:pg18
+      inheritEnv: false
+      memory: 256Mi
+      minCpu: 100m
+      minMemory: 128Mi
+      ports:
+        - number: 5432
+          protocol: tcp
+      readinessProbe:
+        exec:
+          command:
+            - sh
+            - '-c'
+            - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+        failureThreshold: 10
+        initialDelaySeconds: 17
+        periodSeconds: 5
+        successThreshold: 1
+        timeoutSeconds: 3
+      volumes:
+        - path: /var/lib/postgresql/data
+          recoveryPolicy: retain
+          uri: cpln://volumeset/postgres-pg-vs
+  defaultOptions:
+    autoscaling:
+      maxConcurrency: 0
+      maxScale: 1
+      metric: disabled
+      minScale: 1
+      scaleToZeroDelay: 300
+      target: 95
+    capacityAI: false
+    debug: false
+    suspend: false
+    timeoutSeconds: 5
+  firewallConfig:
+    external:
+      inboundAllowCIDR: []
+      inboundBlockedCIDR: []
+      outboundAllowCIDR:
+        - 0.0.0.0/0
+      outboundAllowHostname: []
+      outboundBlockedCIDR: []
+    internal:
+      inboundAllowType: same-gvc
+      inboundAllowWorkload: []
+  identityLink: //gvc/trackrecord-api/identity/postgres-pg-identity
+  supportDynamicTags: false

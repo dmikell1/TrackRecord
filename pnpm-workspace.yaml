@@ -1,0 +1,13 @@
+packages:
+  - 'api-core'
+  - 'api-prospecting'
+  - 'packages/*'
+  - 'test-utils'
+allowBuilds:
+  '@apollo/protobufjs': true
+  '@sentry-internal/node-cpu-profiler': true
+  core-js: true
+  esbuild: true
+  msgpackr-extract: true
+  puppeteer: true
+  unrs-resolver: true

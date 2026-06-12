@@ -1,0 +1,40 @@
+kind: gvc
+name: trackrecord-api
+description: trackrecord-api
+tags: {}
+spec:
+  env:
+    - name: PORT
+      value: cpln://secret/trackrecord-env-vars.PORT
+    - name: PROSPECTING_PORT
+      value: cpln://secret/trackrecord-env-vars.PROSPECTING_PORT
+    - name: ENVIRONMENT_NAME
+      value: cpln://secret/trackrecord-env-vars.ENVIRONMENT_NAME
+    - name: APPLICATION_URL
+      value: cpln://secret/trackrecord-env-vars.APPLICATION_URL
+    - name: CHANCE_SEED
+      value: cpln://secret/trackrecord-env-vars.CHANCE_SEED
+    - name: DATABASE_URL
+      value: cpln://secret/trackrecord-env-vars.DATABASE_URL
+    - name: CLERK_P_SECRET
+      value: cpln://secret/trackrecord-env-vars.CLERK_P_SECRET
+    - name: CLERK_SECRET_KEY
+      value: cpln://secret/trackrecord-env-vars.CLERK_SECRET_KEY
+    - name: CLOUDFLARE_R2_BUCKET
+      value: cpln://secret/trackrecord-env-vars.CLOUDFLARE_R2_BUCKET
+    - name: CLOUDFLARE_R2_ACCOUNT_ID
+      value: cpln://secret/trackrecord-env-vars.CLOUDFLARE_R2_ACCOUNT_ID
+    - name: CLOUDFLARE_R2_ACCESS_KEY_ID
+      value: cpln://secret/trackrecord-env-vars.CLOUDFLARE_R2_ACCESS_KEY_ID
+    - name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+      value: cpln://secret/trackrecord-env-vars.CLOUDFLARE_R2_SECRET_ACCESS_KEY
+    - name: CLOUDFLARE_R2_PUBLIC_URL
+      value: cpln://secret/trackrecord-env-vars.CLOUDFLARE_R2_PUBLIC_URL
+
+  loadBalancer:
+    dedicated: false
+    trustedProxies: 0
+  staticPlacement:
+    locationLinks:
+      - //location/aws-us-east-2
+      # - //location/aws-us-west-2

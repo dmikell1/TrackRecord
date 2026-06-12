@@ -1,0 +1,334 @@
+import { relations } from 'drizzle-orm'
+import {
+	boolean,
+	integer,
+	jsonb,
+	pgTable,
+	primaryKey,
+	text,
+	timestamp,
+	uniqueIndex,
+	uuid,
+	varchar
+} from 'drizzle-orm/pg-core'
+
+import { standardTimestamps } from '@packages/database/timestampColumns'
+
+export const users = pgTable('users', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	clerkId: varchar('clerk_id', { length: 255 }),
+	firstName: varchar('first_name', { length: 45 }).notNull(),
+	lastName: varchar('last_name', { length: 45 }).notNull(),
+	email: varchar('email', { length: 255 }).notNull().unique(),
+	avatar: text('avatar').notNull(),
+	status: varchar('status', { length: 50 }).notNull(),
+	invitedById: uuid('invited_by_id'),
+	...standardTimestamps
+})
+
+export const companies = pgTable('companies', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	ownerId: uuid('owner_id')
+		.notNull()
+		.references(() => users.id),
+	name: varchar('name', { length: 45 }).notNull(),
+	settings: jsonb('settings')
+		.notNull()
+		.$type<{ timezoneName?: string }>(),
+	...standardTimestamps
+})
+
+export const teams = pgTable('teams', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	name: varchar('name', { length: 45 }).notNull(),
+	ownerId: uuid('owner_id')
+		.notNull()
+		.references(() => users.id),
+	companyId: uuid('company_id')
+		.notNull()
+		.references(() => companies.id),
+	settings: jsonb('settings')
+		.notNull()
+		.default({})
+		.$type<import('@packages/types/teamSettings').TeamSettingsInterface>(),
+	...standardTimestamps
+})
+
+export const companyUsers = pgTable(
+	'company_users',
+	{
+		companyId: uuid('company_id')
+			.notNull()
+			.references(() => companies.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		...standardTimestamps
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.companyId, t.userId] })
+	})
+)
+
+export const teamUsers = pgTable(
+	'team_users',
+	{
+		teamId: uuid('team_id')
+			.notNull()
+			.references(() => teams.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		...standardTimestamps
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.teamId, t.userId] })
+	})
+)
+
+export const userRoles = pgTable('user_roles', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	userId: uuid('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	companyId: uuid('company_id')
+		.notNull()
+		.references(() => companies.id, { onDelete: 'cascade' }),
+	role: varchar('role', { length: 50 }).notNull(),
+	...standardTimestamps
+})
+
+// ─── Track Record Domain Tables ───────────────────────────────────────────────
+
+export const athletes = pgTable('athletes', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	teamId: uuid('team_id')
+		.notNull()
+		.references(() => teams.id, { onDelete: 'cascade' }),
+	companyId: uuid('company_id')
+		.notNull()
+		.references(() => companies.id, { onDelete: 'cascade' }),
+	userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+	firstName: varchar('first_name', { length: 45 }).notNull(),
+	lastName: varchar('last_name', { length: 45 }).notNull(),
+	email: varchar('email', { length: 255 }).notNull(),
+	phone: varchar('phone', { length: 30 }),
+	color: varchar('color', { length: 20 }).notNull().default('#3B82F6'),
+	deletedAt: timestamp('deleted_at', { withTimezone: true }),
+	...standardTimestamps
+})
+
+export const athleteInvites = pgTable('athlete_invites', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	teamId: uuid('team_id')
+		.notNull()
+		.references(() => teams.id, { onDelete: 'cascade' }),
+	email: varchar('email', { length: 255 }).notNull(),
+	token: varchar('token', { length: 255 }).notNull().unique(),
+	status: varchar('status', { length: 50 }).notNull().default('Pending'),
+	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+	acceptedByUserId: uuid('accepted_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+	...standardTimestamps
+})
+
+export const trainingSessions = pgTable('training_sessions', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	teamId: uuid('team_id')
+		.notNull()
+		.references(() => teams.id, { onDelete: 'cascade' }),
+	companyId: uuid('company_id')
+		.notNull()
+		.references(() => companies.id, { onDelete: 'cascade' }),
+	name: varchar('name', { length: 255 }).notNull(),
+	date: timestamp('date', { withTimezone: true }).notNull(),
+	type: varchar('type', { length: 50 }).notNull(),
+	createdByUserId: uuid('created_by_user_id')
+		.notNull()
+		.references(() => users.id),
+	...standardTimestamps
+})
+
+export const videos = pgTable('videos', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	sessionId: uuid('session_id')
+		.notNull()
+		.references(() => trainingSessions.id, { onDelete: 'cascade' }),
+	teamId: uuid('team_id')
+		.notNull()
+		.references(() => teams.id, { onDelete: 'cascade' }),
+	athleteId: uuid('athlete_id').references(() => athletes.id, {
+		onDelete: 'cascade'
+	}),
+	event: varchar('event', { length: 50 }),
+	result: jsonb('result').$type<{
+		type: 'Foul' | 'Mark' | 'VerticalHeights' | 'Time' | 'DNF' | 'DQ'
+		value?: number
+		cleared?: boolean
+		reason?: string
+		heights?: Array<{ height: number; cleared: boolean }>
+	} | null>(),
+	isPR: boolean('is_pr').notNull().default(false),
+	videoUrl: text('video_url').notNull(),
+	thumbUrl: text('thumb_url'),
+	orientation: varchar('orientation', { length: 20 }).notNull().default('portrait'),
+	durationMs: integer('duration_ms'),
+	recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+	...standardTimestamps
+})
+
+export const videoPerformances = pgTable(
+	'video_performances',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		videoId: uuid('video_id')
+			.notNull()
+			.references(() => videos.id, { onDelete: 'cascade' }),
+		teamId: uuid('team_id')
+			.notNull()
+			.references(() => teams.id, { onDelete: 'cascade' }),
+		athleteId: uuid('athlete_id')
+			.notNull()
+			.references(() => athletes.id, { onDelete: 'cascade' }),
+		event: varchar('event', { length: 50 }).notNull(),
+		result: jsonb('result').$type<{
+			type: 'Time' | 'DNF' | 'DQ'
+			value?: number
+			reason?: string
+		} | null>(),
+		isPR: boolean('is_pr').notNull().default(false),
+		...standardTimestamps
+	},
+	table => ({
+		videoAthleteUnique: uniqueIndex('video_performances_video_athlete_idx').on(
+			table.videoId,
+			table.athleteId
+		)
+	})
+)
+
+export const videoComments = pgTable('video_comments', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	videoId: uuid('video_id')
+		.notNull()
+		.references(() => videos.id, { onDelete: 'cascade' }),
+	userId: uuid('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	text: text('text').notNull(),
+	stampSeconds: integer('stamp_seconds'),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+})
+
+export const trackRecordNotifications = pgTable('track_record_notifications', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	userId: uuid('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	teamId: uuid('team_id')
+		.notNull()
+		.references(() => teams.id, { onDelete: 'cascade' }),
+	type: varchar('type', { length: 50 }).notNull(),
+	text: text('text').notNull(),
+	read: boolean('read').notNull().default(false),
+	payload: jsonb('payload').$type<Record<string, unknown>>(),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+})
+
+// ─── Track Record Relations ────────────────────────────────────────────────────
+
+export const athletesRelations = relations(athletes, ({ one, many }) => ({
+	team: one(teams, { fields: [athletes.teamId], references: [teams.id] }),
+	company: one(companies, { fields: [athletes.companyId], references: [companies.id] }),
+	user: one(users, { fields: [athletes.userId], references: [users.id] }),
+	videos: many(videos),
+	invites: many(athleteInvites)
+}))
+
+export const athleteInvitesRelations = relations(athleteInvites, ({ one }) => ({
+	team: one(teams, { fields: [athleteInvites.teamId], references: [teams.id] }),
+	acceptedByUser: one(users, { fields: [athleteInvites.acceptedByUserId], references: [users.id] })
+}))
+
+export const trainingSessionsRelations = relations(trainingSessions, ({ one, many }) => ({
+	team: one(teams, { fields: [trainingSessions.teamId], references: [teams.id] }),
+	company: one(companies, { fields: [trainingSessions.companyId], references: [companies.id] }),
+	createdBy: one(users, { fields: [trainingSessions.createdByUserId], references: [users.id] }),
+	videos: many(videos)
+}))
+
+export const videosRelations = relations(videos, ({ one, many }) => ({
+	session: one(trainingSessions, { fields: [videos.sessionId], references: [trainingSessions.id] }),
+	team: one(teams, { fields: [videos.teamId], references: [teams.id] }),
+	athlete: one(athletes, { fields: [videos.athleteId], references: [athletes.id] }),
+	comments: many(videoComments),
+	performances: many(videoPerformances)
+}))
+
+export const videoPerformancesRelations = relations(videoPerformances, ({ one }) => ({
+	video: one(videos, { fields: [videoPerformances.videoId], references: [videos.id] }),
+	team: one(teams, { fields: [videoPerformances.teamId], references: [teams.id] }),
+	athlete: one(athletes, { fields: [videoPerformances.athleteId], references: [athletes.id] })
+}))
+
+export const videoCommentsRelations = relations(videoComments, ({ one }) => ({
+	video: one(videos, { fields: [videoComments.videoId], references: [videos.id] }),
+	user: one(users, { fields: [videoComments.userId], references: [users.id] })
+}))
+
+export const trackRecordNotificationsRelations = relations(trackRecordNotifications, ({ one }) => ({
+	user: one(users, { fields: [trackRecordNotifications.userId], references: [users.id] }),
+	team: one(teams, { fields: [trackRecordNotifications.teamId], references: [teams.id] })
+}))
+
+export const usersRelations = relations(users, ({ many }) => ({
+	companyLinks: many(companyUsers),
+	teamLinks: many(teamUsers),
+	roles: many(userRoles)
+}))
+
+export const companiesRelations = relations(companies, ({ one, many }) => ({
+	owner: one(users, {
+		fields: [companies.ownerId],
+		references: [users.id]
+	}),
+	teams: many(teams),
+	memberLinks: many(companyUsers)
+}))
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+	company: one(companies, {
+		fields: [teams.companyId],
+		references: [companies.id]
+	}),
+	owner: one(users, {
+		fields: [teams.ownerId],
+		references: [users.id]
+	}),
+	memberLinks: many(teamUsers)
+}))
+
+export const schema = {
+	users,
+	companies,
+	teams,
+	companyUsers,
+	teamUsers,
+	userRoles,
+	athletes,
+	athleteInvites,
+	trainingSessions,
+	videos,
+	videoPerformances,
+	videoComments,
+	trackRecordNotifications,
+	usersRelations,
+	companiesRelations,
+	teamsRelations,
+	athletesRelations,
+	athleteInvitesRelations,
+	trainingSessionsRelations,
+	videosRelations,
+	videoPerformancesRelations,
+	videoCommentsRelations,
+	trackRecordNotificationsRelations
+}

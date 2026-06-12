@@ -1,0 +1,13 @@
+node_modules
+.env
+.env.test
+.DS_Store
+*.log
+logs/
+.next/
+yarn.lock
+build/
+client-types
+coverage
+.eslintcache
+

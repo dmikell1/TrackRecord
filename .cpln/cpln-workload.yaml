@@ -1,0 +1,57 @@
+kind: workload
+name: api-core
+description: api-core
+tags: {}
+spec:
+  type: serverless
+  containers:
+    - name: api-core
+      args:
+        - ./build/api-core/src/index.js
+      command: node
+      cpu: '1'
+      env:
+        - name: SERVICE_NAME
+          value: api-core
+      image: '/org/${CPLN_ORG}/image/${CPLN_ORG}.registry.cpln.io/${CPLN_IMAGE}:${SHA_SHORT}'
+      inheritEnv: true
+      memory: 1Gi
+      ports:
+        - number: 80
+          protocol: http
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          httpHeaders: []
+          path: /health
+          port: 80
+          scheme: HTTP
+        initialDelaySeconds: 20
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+  defaultOptions:
+    autoscaling:
+      maxConcurrency: 1000
+      maxScale: MAX_SCALE
+      metric: concurrency
+      minScale: MIN_SCALE
+      scaleToZeroDelay: 30
+      target: 10
+    capacityAI: true
+    debug: false
+    suspend: SUSPEND_VALUE
+    timeoutSeconds: 300
+  firewallConfig:
+    external:
+      inboundAllowCIDR:
+        - 0.0.0.0/0
+      outboundAllowCIDR:
+        - 0.0.0.0/0
+      outboundAllowHostname: []
+      outboundAllowPort: []
+    internal:
+      inboundAllowType: same-gvc
+      inboundAllowWorkload: []
+  identityLink: //gvc/trackrecord-api/identity/trackrecord-api
+  supportDynamicTags: false

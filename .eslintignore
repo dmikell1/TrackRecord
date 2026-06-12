@@ -1,0 +1,10 @@
+build
+coverage
+package-lock.json
+.eslintrc.js
+dangerfile.ts
+jest.**
+scripts
+.github
+migrate-mongo-config.js
+migrations
