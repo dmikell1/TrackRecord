@@ -1,134 +1,134 @@
 name: Deploy-To-Control-Plane
 
 on:
-  push:
-    branches: [main, production]
+  push:
+    branches: [main, production]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-    inputs:
-      deployment-environment-target:
-        required: false
-        type: choice
-        description: Environment target
-        options:
-          # - develop
-          - qa
-          # - production
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      deployment-environment-target:
+        required: false
+        type: choice
+        description: Environment target
+        options:
+          # - develop
+          - qa
+          # - production
 
 jobs:
-  deploy-to-control-plane:
-    runs-on: ubuntu-latest
+  deploy-to-control-plane:
+    runs-on: ubuntu-latest
 
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
 
-      - name: Set Environment Variables
-        id: set-env
-        run: |
-          TARGET_ENV=${{ github.event.inputs.deployment-environment-target || 'none' }}
-          BRANCH_NAME=${{ github.ref_name }}
+      - name: Set Environment Variables
+        id: set-env
+        run: |
+          TARGET_ENV=${{ github.event.inputs.deployment-environment-target || 'none' }}
+          BRANCH_NAME=${{ github.ref_name }}
 
-          if [ "$TARGET_ENV" == "none" ]; then
-            if [ "$BRANCH_NAME" == "develop" ]; then
-              TARGET_ENV="develop"
-            elif [ "$BRANCH_NAME" == "main" ]; then
-              TARGET_ENV="qa"
-            elif [ "$BRANCH_NAME" == "production" ]; then
-              TARGET_ENV="production"
-            else
-              TARGET_ENV="main"
-            fi
-          fi
+          if [ "$TARGET_ENV" == "none" ]; then
+            if [ "$BRANCH_NAME" == "develop" ]; then
+              TARGET_ENV="develop"
+            elif [ "$BRANCH_NAME" == "main" ]; then
+              TARGET_ENV="qa"
+            elif [ "$BRANCH_NAME" == "production" ]; then
+              TARGET_ENV="production"
+            else
+              TARGET_ENV="main"
+            fi
+          fi
 
-          case $TARGET_ENV in
-            develop)
-              echo "CPLN_ORG=trackrecord-dev" >> $GITHUB_ENV
-              echo "CPLN_TOKEN=${{ secrets.CPLN_DEV_TOKEN }}" >> $GITHUB_ENV
-              echo "MAX_SCALE=3" >> $GITHUB_ENV
-              echo "MIN_SCALE=1" >> $GITHUB_ENV
-              echo "SUSPEND=true" >> $GITHUB_ENV
-              ;;
-            qa)
-              echo "CPLN_ORG=trackrecord-qa" >> $GITHUB_ENV
-              echo "CPLN_TOKEN=${{ secrets.CPLN_QA_TOKEN }}" >> $GITHUB_ENV
-              echo "MAX_SCALE=3" >> $GITHUB_ENV
-              echo "MIN_SCALE=1" >> $GITHUB_ENV
-              echo "SUSPEND=true" >> $GITHUB_ENV
-              ;;
-            production)
-              echo "CPLN_ORG=trackrecord" >> $GITHUB_ENV
-              echo "CPLN_TOKEN=${{ secrets.CPLN_PROD_TOKEN }}" >> $GITHUB_ENV
-              echo "MAX_SCALE=5" >> $GITHUB_ENV
-              echo "MIN_SCALE=1" >> $GITHUB_ENV
-              echo "SUSPEND=false" >> $GITHUB_ENV
-              ;;
-          esac
+          case $TARGET_ENV in
+            develop)
+              echo "CPLN_ORG=trackrecord-dev" >> $GITHUB_ENV
+              echo "CPLN_TOKEN=${{ secrets.CPLN_DEV_TOKEN }}" >> $GITHUB_ENV
+              echo "MAX_SCALE=3" >> $GITHUB_ENV
+              echo "MIN_SCALE=1" >> $GITHUB_ENV
+              echo "SUSPEND=true" >> $GITHUB_ENV
+              ;;
+            qa)
+              echo "CPLN_ORG=trackrecord-qa" >> $GITHUB_ENV
+              echo "CPLN_TOKEN=${{ secrets.CPLN_QA_TOKEN }}" >> $GITHUB_ENV
+              echo "MAX_SCALE=3" >> $GITHUB_ENV
+              echo "MIN_SCALE=1" >> $GITHUB_ENV
+              echo "SUSPEND=true" >> $GITHUB_ENV
+              ;;
+            production)
+              echo "CPLN_ORG=trackrecord" >> $GITHUB_ENV
+              echo "CPLN_TOKEN=${{ secrets.CPLN_PROD_TOKEN }}" >> $GITHUB_ENV
+              echo "MAX_SCALE=5" >> $GITHUB_ENV
+              echo "MIN_SCALE=1" >> $GITHUB_ENV
+              echo "SUSPEND=false" >> $GITHUB_ENV
+              ;;
+          esac
 
-          echo "TARGET_ENV=$TARGET_ENV" >> $GITHUB_ENV
-          echo "CPLN_IMAGE=trackrecord-api" >> $GITHUB_ENV
+          echo "TARGET_ENV=$TARGET_ENV" >> $GITHUB_ENV
+          echo "CPLN_IMAGE=trackrecord-api" >> $GITHUB_ENV
 
-      - name: Set Short SHA
-        id: vars
-        run: |
-          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Set Short SHA
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Install Control Plane CLI
-        shell: bash
-        run: |
-          sudo npm install -g @controlplane/cli
-          cpln --version
+      - name: Install Control Plane CLI
+        shell: bash
+        run: |
+          sudo npm install -g @controlplane/cli
+          cpln --version
 
-      # Containerize and push the application to the org's private image repository. The tag is the short SHA of the commit.
-      - name: Containerize application and push image
-        shell: bash
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: |
-          cpln profile update default --token "${{ env.CPLN_TOKEN }}"
-          cpln image docker-login
-          IMAGE_NAME="${{ env.CPLN_ORG }}.registry.cpln.io/${{ env.CPLN_IMAGE }}"
-          export NODE_OPTIONS="--max-old-space-size=4096"
-          docker build \
-            --build-arg SENTRY_AUTH_TOKEN \
-            -t ${IMAGE_NAME}:${{ steps.vars.outputs.sha_short }} \
-            -f Dockerfile .
-          docker push ${IMAGE_NAME}:${{ steps.vars.outputs.sha_short }}
+      # Containerize and push the application to the org's private image repository. The tag is the short SHA of the commit.
+      - name: Containerize application and push image
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          cpln profile update default --token "${{ env.CPLN_TOKEN }}"
+          cpln image docker-login
+          IMAGE_NAME="${{ env.CPLN_ORG }}.registry.cpln.io/${{ env.CPLN_IMAGE }}"
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          docker build \
+            --build-arg SENTRY_AUTH_TOKEN \
+            -t ${IMAGE_NAME}:${{ steps.vars.outputs.sha_short }} \
+            -f Dockerfile .
+          docker push ${IMAGE_NAME}:${{ steps.vars.outputs.sha_short }}
 
-      - name: Substitute Tokens in Control Plane YAML Files
-        shell: bash
-        working-directory: ./.cpln
-        env:
-          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
-        run: |
-          # Replace CPLN_ORG variable first
-          sed -i "s|\${CPLN_ORG}|${CPLN_ORG}|g" cpln-workload.yaml
-          
-          # Replace SHA_SHORT variable
-          sed -i "s|\${SHA_SHORT}|${SHA_SHORT}|g" cpln-workload.yaml
-          
-          # Replace CPLN_IMAGE variable (for api-core workload)
-          sed -i "s|\${CPLN_IMAGE}|${CPLN_IMAGE}|g" cpln-workload.yaml
-          
-          # Use word boundaries to avoid partial matches - order matters: replace longer names first
-          # For env variables that appear in both name and value fields, only replace in value context
-          sed -i "s/\bMAX_SCALE\b/${{ env.MAX_SCALE }}/g" cpln-workload.yaml
-          sed -i "s/\bMIN_SCALE\b/${{ env.MIN_SCALE }}/g" cpln-workload.yaml
-          sed -i "s/\bSUSPEND_VALUE\b/${{ env.SUSPEND }}/g" cpln-workload.yaml
+      - name: Substitute Tokens in Control Plane YAML Files
+        shell: bash
+        working-directory: ./.cpln
+        env:
+          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          # Replace CPLN_ORG variable first
+          sed -i "s|\${CPLN_ORG}|${CPLN_ORG}|g" cpln-workload.yaml
 
-      # - name: Wait for approval (production only)
-      #   if: ${{ env.TARGET_ENV == 'production' }}
-      #   uses: trstringer/manual-approval@v1
-      #   with:
-      #     secret: ${{ github.TOKEN }}
-      #     approvers: Devoagency,jessicabushong,mkrenshaw96
-      #     minimum-approvals: 1
+          # Replace SHA_SHORT variable
+          sed -i "s|\${SHA_SHORT}|${SHA_SHORT}|g" cpln-workload.yaml
 
-      - name: Run CPLN Apply
-        shell: bash
-        working-directory: ./.cpln
-        run: |
-          cpln apply -f cpln-gvc.yaml
-          cpln apply -f cpln-workload-postgres.yaml --gvc trackrecord-api
-          cpln apply -f cpln-workload.yaml --gvc trackrecord-api
+          # Replace CPLN_IMAGE variable (for api-core workload)
+          sed -i "s|\${CPLN_IMAGE}|${CPLN_IMAGE}|g" cpln-workload.yaml
+
+          # Use word boundaries to avoid partial matches - order matters: replace longer names first
+          # For env variables that appear in both name and value fields, only replace in value context
+          sed -i "s/\bMAX_SCALE\b/${{ env.MAX_SCALE }}/g" cpln-workload.yaml
+          sed -i "s/\bMIN_SCALE\b/${{ env.MIN_SCALE }}/g" cpln-workload.yaml
+          sed -i "s/\bSUSPEND_VALUE\b/${{ env.SUSPEND }}/g" cpln-workload.yaml
+
+      # - name: Wait for approval (production only)
+      #   if: ${{ env.TARGET_ENV == 'production' }}
+      #   uses: trstringer/manual-approval@v1
+      #   with:
+      #     secret: ${{ github.TOKEN }}
+      #     approvers: Devoagency,jessicabushong,mkrenshaw96
+      #     minimum-approvals: 1
+
+      - name: Run CPLN Apply
+        shell: bash
+        working-directory: ./.cpln
+        run: |
+          cpln apply -f cpln-gvc.yaml
+          cpln apply -f cpln-workload-postgres.yaml --gvc trackrecord-api
+          cpln apply -f cpln-workload.yaml --gvc trackrecord-api
