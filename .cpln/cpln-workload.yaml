@@ -13,7 +13,7 @@ spec:
       env:
         - name: SERVICE_NAME
           value: api-core
-      image: '/org/${CPLN_ORG}/image/${CPLN_ORG}.registry.cpln.io/${CPLN_IMAGE}:${SHA_SHORT}'
+      image: '/org/${CPLN_ORG}/image/${CPLN_IMAGE}:${SHA_SHORT}'
       inheritEnv: true
       memory: 1Gi
       ports:
