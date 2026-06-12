@@ -33,17 +33,17 @@ spec:
     - name: POSTGRES_URL
       value: cpln://secret/trackrecord-env-vars.POSTGRES_URL
     - name: POSTGRES_USER
-      value: cpln://secret/postgres-pg-config.username
-    - name: POSTGRES_PASSWORD
-      value: cpln://secret/postgres-pg-config.password
-    - name: POSTGRES_HOST
-      value: postgres-postgres
-    - name: POSTGRES_DB
-      value: trackrecord
-    - name: AUTO_RUN_MIGRATIONS
-      value: cpln://secret/trackrecord-env-vars.AUTO_RUN_MIGRATIONS
-    - name: DB_POOL_SIZE
-      value: cpln://secret/trackrecord-env-vars.DB_POOL_SIZE
+      value: cpln://secret/postgres-pg-config.username
+    - name: POSTGRES_PASSWORD
+      value: cpln://secret/postgres-pg-config.password
+    - name: POSTGRES_HOST
+      value: postgres-postgres
+    - name: POSTGRES_DB
+      value: trackrecord
+    - name: AUTO_RUN_MIGRATIONS
+      value: cpln://secret/trackrecord-env-vars.AUTO_RUN_MIGRATIONS
+    - name: DB_POOL_SIZE
+      value: cpln://secret/trackrecord-env-vars.DB_POOL_SIZE
   loadBalancer:
     dedicated: false
     trustedProxies: 0
