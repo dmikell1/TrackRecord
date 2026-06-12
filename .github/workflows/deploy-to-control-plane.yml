@@ -58,7 +58,7 @@ jobs:
               echo "SUSPEND=true" >> $GITHUB_ENV
               ;;
             production)
-              echo "CPLN_ORG=trackrecord" >> $GITHUB_ENV
+              echo "CPLN_ORG=lower-9-ventures" >> $GITHUB_ENV
               echo "CPLN_TOKEN=${{ secrets.CPLN_PROD_TOKEN }}" >> $GITHUB_ENV
               echo "MAX_SCALE=5" >> $GITHUB_ENV
               echo "MIN_SCALE=1" >> $GITHUB_ENV
