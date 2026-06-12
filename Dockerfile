@@ -1,12 +1,7 @@
 FROM node:20-bullseye-slim AS base
 
 # Build deps only (Chromium moved to image-processor for text overlay)
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y ca-certificates wget python3 make g++ \
-    --no-install-recommends && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+
 
 WORKDIR /app
 
