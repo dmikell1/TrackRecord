@@ -191,9 +191,11 @@ export const videoPerformances = pgTable(
 			.references(() => athletes.id, { onDelete: 'cascade' }),
 		event: varchar('event', { length: 50 }).notNull(),
 		result: jsonb('result').$type<{
-			type: 'Time' | 'DNF' | 'DQ'
+			type: 'Foul' | 'Mark' | 'VerticalHeights' | 'Time' | 'DNF' | 'DQ'
 			value?: number
+			cleared?: boolean
 			reason?: string
+			heights?: Array<{ height: number; cleared: boolean }>
 		} | null>(),
 		isPR: boolean('is_pr').notNull().default(false),
 		...standardTimestamps

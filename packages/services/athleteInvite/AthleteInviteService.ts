@@ -136,7 +136,7 @@ export class AthleteInviteService {
 				email: invite.email,
 				firstName: athlete?.firstName ?? null,
 				lastName: athlete?.lastName ?? null,
-				status: invite.status
+				status: invite.status as AthleteInviteStatus
 			}
 		}
 

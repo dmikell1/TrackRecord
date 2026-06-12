@@ -1,9 +1,9 @@
 import express, { type Request, type Response } from 'express'
-import Redis from 'ioredis'
+// import Redis from 'ioredis'
 import { sql } from 'drizzle-orm'
 
 import { getDb } from '@packages/database/createPostgresConnection'
-import { redisOptions } from '@packages/services/queue/RedisService'
+// import { redisOptions } from '@packages/services/queue/RedisService'
 
 const healthRouter = express.Router()
 
@@ -17,26 +17,26 @@ healthRouter.get('/health', async (_req: Request, res: Response) => {
 			postgresStatus = false
 		}
 
-		let redisStatus = false
-		try {
-			const redisClient = new Redis(redisOptions)
-			await redisClient.ping()
-			redisStatus = true
-		} catch {
-			redisStatus = false
-		}
+		// let redisStatus = false
+		// try {
+		// 	const redisClient = new Redis(redisOptions)
+		// 	await redisClient.ping()
+		// 	redisStatus = true
+		// } catch {
+		// 	redisStatus = false
+		// }
 
-		if (postgresStatus && redisStatus) {
+		if (postgresStatus) {
 			res.status(200).json({
 				ok: true,
 				postgres: 'connected',
-				redis: 'connected'
+				redis: 'disabled'
 			})
 		} else {
 			res.status(503).json({
 				ok: false,
 				postgres: postgresStatus ? 'connected' : 'disconnected',
-				redis: redisStatus ? 'connected' : 'disconnected'
+				redis: 'disabled'
 			})
 		}
 	} catch {

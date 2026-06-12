@@ -15,7 +15,7 @@ import { schema } from '@packages/database/schema'
 pg.types.setTypeParser(1114, (str: string) => new Date(str + '+00'))
 
 export const POSTGRES_URL = isDevelopment
-    ? (env.POSTGRES_URL ?? 'postgresql://localhost:5432/salesaxis')
+    ? (env.POSTGRES_URL ?? 'postgresql://localhost:5432/trackrecord')
     : `postgresql://${encodeURIComponent(env.POSTGRES_USER)}:${encodeURIComponent(env.POSTGRES_PASSWORD)}@${env.POSTGRES_HOST}:${env.POSTGRES_PORT}/${env.POSTGRES_DB}`
 
 const MAX_RETRY_ATTEMPTS = 5

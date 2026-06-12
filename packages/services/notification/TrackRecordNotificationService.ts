@@ -3,7 +3,6 @@ import { injectable, inject, singleton } from 'tsyringe'
 import type { TrackRecordNotificationFilter } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
-import { ReportingService } from '@packages/services/logging/ReportingService'
 import type { TrackRecordNotificationInterface } from '@packages/types/trackRecordNotification'
 
 @injectable()
@@ -11,8 +10,7 @@ import type { TrackRecordNotificationInterface } from '@packages/types/trackReco
 @ReportErrors()
 export class TrackRecordNotificationService {
 	constructor(
-		@inject(TrackRecordNotificationRepository) private notificationRepository: TrackRecordNotificationRepository,
-		@inject(ReportingService) private reportingService: ReportingService
+		@inject(TrackRecordNotificationRepository) private notificationRepository: TrackRecordNotificationRepository
 	) {}
 
 	public async createNotification({ data }: {
