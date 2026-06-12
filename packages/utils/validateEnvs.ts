@@ -50,7 +50,29 @@ const envSchema = z.object({
 	CLOUDFLARE_R2_PUBLIC_URL: z.string().default(''),
 	// CORS
 	FRONTEND_URL: z.string().default('http://localhost:3000'),
-	WEBSITE_URL: z.string().default('http://localhost:3001')
+	WEBSITE_URL: z.string().default('http://localhost:3001'),
+	    // POSTGRES
+    POSTGRES_URL: z.string().optional(),
+    POSTGRES_USER: z.string().default('postgres'),
+    POSTGRES_PASSWORD: z.string().default('postgres'),
+    POSTGRES_HOST: z.string().default('localhost'),
+    POSTGRES_DB: z.string().default('salesaxis'),
+    POSTGRES_PORT: z
+        .string()
+        .default('5432')
+        .transform((val) => parseInt(val, 10))
+        .pipe(z.number().int().positive()),
+    AUTO_RUN_MIGRATIONS: z
+        .string()
+        .default('true')
+        .transform((val) => val === 'true'),
+    DB_POOL_SIZE: z
+        .string()
+        .default('10')
+        .transform((val) => parseInt(val, 10))
+        .pipe(z.number().int().positive()),
+
+
 })
 
 const parseEnv = (): z.infer<typeof envSchema> => {
