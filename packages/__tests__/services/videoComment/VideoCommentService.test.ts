@@ -6,6 +6,7 @@ import { AthleteRepository } from '@packages/repositories/athlete/AthleteReposit
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import { VideoCommentRepository } from '@packages/repositories/videoComment/VideoCommentRepository'
+import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { VideoCommentService } from '@packages/services/videoComment/VideoCommentService'
@@ -17,6 +18,7 @@ describe('VideoCommentService', () => {
 	let service: VideoCommentService
 	let mockVideoCommentRepository: jest.Mocked<VideoCommentRepository>
 	let mockVideoRepository: jest.Mocked<VideoRepository>
+	let mockVideoPerformanceRepository: jest.Mocked<VideoPerformanceRepository>
 	let mockAthleteRepository: jest.Mocked<AthleteRepository>
 	let mockTeamRepository: jest.Mocked<TeamRepository>
 	let mockNotificationRepository: jest.Mocked<TrackRecordNotificationRepository>
@@ -29,6 +31,7 @@ describe('VideoCommentService', () => {
 	beforeEach(() => {
 		mockVideoCommentRepository = mock<VideoCommentRepository>()
 		mockVideoRepository = mock<VideoRepository>()
+		mockVideoPerformanceRepository = mock<VideoPerformanceRepository>()
 		mockAthleteRepository = mock<AthleteRepository>()
 		mockTeamRepository = mock<TeamRepository>()
 		mockNotificationRepository = mock<TrackRecordNotificationRepository>()
@@ -37,6 +40,10 @@ describe('VideoCommentService', () => {
 
 		container.registerInstance(VideoCommentRepository, mockVideoCommentRepository)
 		container.registerInstance(VideoRepository, mockVideoRepository)
+		container.registerInstance(
+			VideoPerformanceRepository,
+			mockVideoPerformanceRepository
+		)
 		container.registerInstance(AthleteRepository, mockAthleteRepository)
 		container.registerInstance(TeamRepository, mockTeamRepository)
 		container.registerInstance(
@@ -191,6 +198,88 @@ describe('VideoCommentService', () => {
 						athleteId: athlete.id,
 						event: video.event,
 						athleteName: 'Maya Chen'
+					})
+				})
+			})
+		})
+
+		it('notifies athlete on performance-linked video when coach comments', async () => {
+			const athlete = buildMockAthlete({
+				teamId,
+				userId: athleteUserId,
+				firstName: 'Try',
+				lastName: 'Me'
+			})
+			const video = buildMockVideo({
+				teamId,
+				athleteId: null,
+				event: '100m'
+			})
+			const comment = {
+				id: 'comment-4',
+				videoId: video.id,
+				userId: coachUserId,
+				text: 'Strong finish.',
+				stampSeconds: null,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			}
+
+			mockVideoRepository.findOne.mockResolvedValue(video)
+			mockVideoCommentRepository.create.mockResolvedValue(comment)
+			mockVideoPerformanceRepository.find.mockResolvedValue([
+				{
+					id: 'perf-1',
+					videoId: video.id,
+					teamId,
+					athleteId: athlete.id,
+					event: '100m',
+					result: null,
+					isPR: false,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			])
+			mockAthleteRepository.findOne.mockResolvedValue(athlete)
+			mockTeamRepository.findOne.mockResolvedValue({
+				id: teamId,
+				name: 'Track Team',
+				ownerId: coachUserId,
+				companyId: 'company-1',
+				settings: {},
+				createdAt: new Date(),
+				updatedAt: new Date()
+			})
+			mockNotificationRepository.create.mockResolvedValue({
+				id: 'notif-4',
+				userId: athleteUserId,
+				teamId,
+				type: NotificationType.Comment,
+				text: '',
+				payload: null,
+				read: false,
+				createdAt: new Date()
+			})
+
+			await service.createVideoComment({
+				data: {
+					videoId: video.id,
+					userId: coachUserId,
+					text: 'Strong finish.'
+				},
+				teamId
+			})
+
+			expect(mockVideoPerformanceRepository.find).toHaveBeenCalledWith({
+				filter: { videoId: video.id, teamId }
+			})
+			expect(mockNotificationRepository.create).toHaveBeenCalledWith({
+				data: expect.objectContaining({
+					userId: athleteUserId,
+					text: 'Coach left a note on your 100m video.',
+					payload: expect.objectContaining({
+						athleteId: athlete.id,
+						athleteName: 'Try Me'
 					})
 				})
 			})

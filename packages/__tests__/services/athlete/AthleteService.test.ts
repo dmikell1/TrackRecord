@@ -177,6 +177,52 @@ describe('AthleteService', () => {
 			})
 		})
 
+		it('should queue invite when sendInvite is true', async () => {
+			const createdAthlete = buildMockAthlete({
+				id: 'athlete-new',
+				teamId: 'team-1',
+				companyId: 'company-1',
+				email: 'invite@example.com'
+			})
+			const createdInvite = {
+				id: 'invite-1',
+				teamId: 'team-1',
+				email: 'invite@example.com',
+				token: 'token-1',
+				status: 'Pending',
+				expiresAt: new Date(),
+				acceptedByUserId: null,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			}
+
+			mockAthleteRepository.create.mockResolvedValue(createdAthlete)
+			mockAthleteInviteService.createAthleteInvite.mockResolvedValue(
+				createdInvite
+			)
+
+			const result = await athleteService.createAthlete({
+				data: {
+					teamId: 'team-1',
+					companyId: 'company-1',
+					firstName: 'Invite',
+					lastName: 'Me',
+					email: 'invite@example.com',
+					color: '#3B82F6'
+				},
+				sendInvite: true
+			})
+
+			expect(result).toEqual({
+				athlete: createdAthlete,
+				invite: createdInvite
+			})
+			expect(mockAthleteInviteService.createAthleteInvite).toHaveBeenCalledWith({
+				teamId: 'team-1',
+				email: 'invite@example.com'
+			})
+		})
+
 		it('should throw when batch exceeds the maximum size', async () => {
 			const athletes = Array.from({ length: 51 }, (_, index) => ({
 				firstName: 'Athlete',

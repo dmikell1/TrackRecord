@@ -16,7 +16,8 @@ import type {
 	AthleteInterface,
 	BulkAthleteImportRowResult,
 	BulkAthleteRowInput,
-	BulkCreateAthletesResult
+	BulkCreateAthletesResult,
+	CreateAthleteResult
 } from '@packages/types/athlete'
 
 const MAX_BULK_ATHLETES = 50
@@ -36,11 +37,26 @@ export class AthleteService {
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
 
-	public async createAthlete({ data }: {
+	public async createAthlete({
+		data,
+		sendInvite = false
+	}: {
 		data: Pick<AthleteInterface, 'teamId' | 'companyId' | 'firstName' | 'lastName' | 'email' | 'color'> &
 			Partial<Pick<AthleteInterface, 'userId' | 'phone'>>
-	}): Promise<AthleteInterface> {
-		return this.athleteRepository.create({ data })
+		sendInvite?: boolean
+	}): Promise<CreateAthleteResult> {
+		const athlete = await this.athleteRepository.create({ data })
+
+		if (!sendInvite) {
+			return { athlete, invite: null }
+		}
+
+		const invite = await this.athleteInviteService.createAthleteInvite({
+			teamId: data.teamId,
+			email: athlete.email
+		})
+
+		return { athlete, invite }
 	}
 
 	public async bulkCreateAthletes({

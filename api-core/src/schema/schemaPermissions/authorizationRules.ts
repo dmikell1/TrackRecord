@@ -73,7 +73,7 @@ const withTeamAccess = and(
 			args: WithTeamAccessArgs,
 			ctx: SessionContext
 		): Promise<boolean> => {
-			const team = args.data ? args.data.team : args.team
+			const team = args.data?.team ?? args.team
 			return (
 				ctx.req.session.user?.teams?.some((t) => t.id === team) === true ||
 				userHasOneOfRoles({

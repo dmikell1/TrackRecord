@@ -213,7 +213,7 @@ const ensureAthlete = async ({
 	if (match) {
 		return match
 	}
-	return athleteService.createAthlete({
+	const created = await athleteService.createAthlete({
 		data: {
 			teamId,
 			companyId,
@@ -223,6 +223,7 @@ const ensureAthlete = async ({
 			color: seed.color
 		}
 	})
+	return created.athlete
 }
 
 const ensureSession = async ({

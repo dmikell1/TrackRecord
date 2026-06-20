@@ -1,4 +1,5 @@
 import { BulkAthleteImportIssueReason } from '@packages/enums/trackRecord'
+import type { AthleteInviteInterface } from '@packages/types/athleteInvite'
 
 export interface AthleteInterface {
 	id: string
@@ -32,4 +33,9 @@ export interface BulkCreateAthletesResult {
 	created: AthleteInterface[]
 	skipped: BulkAthleteImportRowResult[]
 	failed: BulkAthleteImportRowResult[]
+}
+
+export interface CreateAthleteResult {
+	athlete: AthleteInterface
+	invite: AthleteInviteInterface | null
 }
