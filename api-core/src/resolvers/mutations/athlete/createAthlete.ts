@@ -1,5 +1,5 @@
 import type { Context } from '@packages/types'
-import type { AthleteInterface } from '@packages/types/athlete'
+import type { CreateAthleteResult } from '@packages/types/athlete'
 
 interface CreateAthleteArgs {
 	data: {
@@ -10,6 +10,7 @@ interface CreateAthleteArgs {
 		email: string
 		phone?: string
 		color: string
+		sendInvite?: boolean
 	}
 }
 
@@ -17,7 +18,7 @@ export const createAthlete = async (
 	_parent: unknown,
 	{ data }: CreateAthleteArgs,
 	{ athleteService, reportingService }: Context
-): Promise<AthleteInterface> => {
+): Promise<CreateAthleteResult> => {
 	reportingService.startTrace({ op: 'createAthlete', name: 'createAthlete' })
 	try {
 		return await athleteService.createAthlete({
@@ -29,7 +30,8 @@ export const createAthlete = async (
 				email: data.email,
 				color: data.color,
 				...(data.phone !== undefined && { phone: data.phone })
-			}
+			},
+			sendInvite: data.sendInvite ?? false
 		})
 	} catch (e) {
 		reportingService.reportError({ error: e as Error })

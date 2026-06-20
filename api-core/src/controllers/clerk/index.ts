@@ -13,6 +13,24 @@ import { UserStatus } from '@packages/enums'
 import { env } from '@packages/utils/validateEnvs'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 
+const buildDefaultTeamName = ({
+	firstName,
+	lastName
+}: {
+	firstName?: string | null
+	lastName?: string | null
+}): string => {
+	const name = [firstName, lastName]
+		.filter(
+			(part): part is string =>
+				typeof part === 'string' && part.trim().length > 0
+		)
+		.map(part => part.trim())
+		.join(' ')
+
+	return name.length > 0 ? name : 'My Team'
+}
+
 export const clerkRouter = express.Router()
 
 clerkRouter.post('/webhook/user-created', async (req, res: Response) => {
@@ -60,7 +78,10 @@ clerkRouter.post('/webhook/user-created', async (req, res: Response) => {
 		}
 	})
 
-	const companyName = `${first_name} ${last_name}`
+	const companyName = buildDefaultTeamName({
+		firstName: first_name,
+		lastName: last_name
+	})
 
 	const count = await userService.countUsers({ filter: { clerkId: id } })
 

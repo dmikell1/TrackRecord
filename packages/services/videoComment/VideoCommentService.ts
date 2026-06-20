@@ -5,6 +5,7 @@ import { AthleteRepository } from '@packages/repositories/athlete/AthleteReposit
 import type { VideoCommentFilter } from '@packages/repositories/videoComment/VideoCommentRepository'
 import { VideoCommentRepository } from '@packages/repositories/videoComment/VideoCommentRepository'
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
+import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
@@ -22,6 +23,8 @@ export class VideoCommentService {
 	constructor(
 		@inject(VideoCommentRepository) private videoCommentRepository: VideoCommentRepository,
 		@inject(VideoRepository) private videoRepository: VideoRepository,
+		@inject(VideoPerformanceRepository)
+		private videoPerformanceRepository: VideoPerformanceRepository,
 		@inject(AthleteRepository) private athleteRepository: AthleteRepository,
 		@inject(TeamRepository) private teamRepository: TeamRepository,
 		@inject(TrackRecordNotificationRepository) private notificationRepository: TrackRecordNotificationRepository,
@@ -42,18 +45,16 @@ export class VideoCommentService {
 
 		const comment = await this.videoCommentRepository.create({ data })
 
-		const athlete =
-			video.athleteId !== null && video.athleteId !== undefined
-				? await this.athleteRepository.findOne({
-						filter: { id: video.athleteId, teamId: video.teamId }
-					})
-				: null
+		const athletes = await this.resolveVideoAthletes({
+			video,
+			teamId: video.teamId
+		})
 		const team = await this.teamRepository.findOne({ filter: { id: video.teamId } })
 
-		await this.notifyCommentRecipient({
+		await this.notifyCommentRecipients({
 			video,
 			comment,
-			athlete,
+			athletes,
 			team,
 			commenterUserId: data.userId
 		})
@@ -61,36 +62,61 @@ export class VideoCommentService {
 		return comment
 	}
 
-	private async notifyCommentRecipient({
+	private async resolveVideoAthletes({
+		video,
+		teamId
+	}: {
+		video: VideoInterface
+		teamId: string
+	}): Promise<AthleteInterface[]> {
+		if (video.athleteId !== null && video.athleteId !== undefined) {
+			const athlete = await this.athleteRepository.findOne({
+				filter: { id: video.athleteId, teamId }
+			})
+			return athlete ? [athlete] : []
+		}
+
+		const performances = await this.videoPerformanceRepository.find({
+			filter: { videoId: video.id, teamId }
+		})
+		const athleteIds = [...new Set(performances.map(performance => performance.athleteId))]
+		const athletes: AthleteInterface[] = []
+
+		for (const athleteId of athleteIds) {
+			const athlete = await this.athleteRepository.findOne({
+				filter: { id: athleteId, teamId }
+			})
+			if (athlete) {
+				athletes.push(athlete)
+			}
+		}
+
+		return athletes
+	}
+
+	private async notifyCommentRecipients({
 		video,
 		comment,
-		athlete,
+		athletes,
 		team,
 		commenterUserId
 	}: {
 		video: VideoInterface
 		comment: VideoCommentInterface
-		athlete: AthleteInterface | null
+		athletes: AthleteInterface[]
 		team: TeamInterface | null
 		commenterUserId: string
 	}): Promise<void> {
 		const eventLabel = formatTrackEventLabel({ event: video.event })
-		const payload = {
-			videoId: video.id,
-			commentId: comment.id,
-			athleteId: video.athleteId,
-			event: video.event,
-			...(athlete !== null && {
-				athleteName: `${athlete.firstName} ${athlete.lastName}`
-			})
-		}
+		const commenterAthlete =
+			athletes.find(
+				athlete =>
+					athlete.userId !== null &&
+					athlete.userId !== undefined &&
+					athlete.userId === commenterUserId
+			) ?? null
 
-		const athleteCommented =
-			athlete?.userId !== undefined &&
-			athlete?.userId !== null &&
-			athlete.userId === commenterUserId
-
-		if (athleteCommented && athlete) {
+		if (commenterAthlete) {
 			const coachUserId = team?.ownerId ?? null
 			if (!coachUserId || coachUserId === commenterUserId) {
 				return
@@ -101,8 +127,14 @@ export class VideoCommentService {
 					userId: coachUserId,
 					teamId: video.teamId,
 					type: NotificationType.Comment,
-					text: `${athlete.firstName} ${athlete.lastName} commented on their ${eventLabel} video.`,
-					payload
+					text: `${commenterAthlete.firstName} ${commenterAthlete.lastName} commented on their ${eventLabel} video.`,
+					payload: {
+						videoId: video.id,
+						commentId: comment.id,
+						athleteId: commenterAthlete.id,
+						event: video.event,
+						athleteName: `${commenterAthlete.firstName} ${commenterAthlete.lastName}`
+					}
 				}
 			}).catch((error) => {
 				this.reportingService.reportError({ error: error as Error })
@@ -110,22 +142,30 @@ export class VideoCommentService {
 			return
 		}
 
-		const athleteUserId = athlete?.userId ?? null
-		if (!athleteUserId || athleteUserId === commenterUserId) {
-			return
-		}
-
-		await this.notificationRepository.create({
-			data: {
-				userId: athleteUserId,
-				teamId: video.teamId,
-				type: NotificationType.Comment,
-				text: `Coach left a note on your ${eventLabel} video.`,
-				payload
+		for (const athlete of athletes) {
+			const athleteUserId = athlete.userId ?? null
+			if (!athleteUserId || athleteUserId === commenterUserId) {
+				continue
 			}
-		}).catch((error) => {
-			this.reportingService.reportError({ error: error as Error })
-		})
+
+			await this.notificationRepository.create({
+				data: {
+					userId: athleteUserId,
+					teamId: video.teamId,
+					type: NotificationType.Comment,
+					text: `Coach left a note on your ${eventLabel} video.`,
+					payload: {
+						videoId: video.id,
+						commentId: comment.id,
+						athleteId: athlete.id,
+						event: video.event,
+						athleteName: `${athlete.firstName} ${athlete.lastName}`
+					}
+				}
+			}).catch((error) => {
+				this.reportingService.reportError({ error: error as Error })
+			})
+		}
 	}
 
 	public async findVideoComments({ filter }: { filter: VideoCommentFilter }): Promise<VideoCommentInterface[]> {

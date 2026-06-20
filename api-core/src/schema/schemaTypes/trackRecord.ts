@@ -291,6 +291,12 @@ export const TrackRecord = gql`
 		email: String!
 		phone: String
 		color: String!
+		sendInvite: Boolean
+	}
+
+	type CreateAthleteResult {
+		athlete: Athlete!
+		invite: AthleteInvite
 	}
 
 	input UpdateAthleteInput {
@@ -423,7 +429,7 @@ export const TrackRecord = gql`
 		updateTrainingSession(id: ID!, data: UpdateTrainingSessionInput!): TrainingSession!
 		deleteTrainingSession(id: ID!, team: ID!): Boolean!
 
-		createAthlete(data: CreateAthleteInput!): Athlete!
+		createAthlete(data: CreateAthleteInput!): CreateAthleteResult!
 		bulkCreateAthletes(data: BulkCreateAthletesInput!): BulkCreateAthletesResult!
 		updateAthlete(id: ID!, data: UpdateAthleteInput!): Athlete!
 		deleteAthlete(id: ID!, team: ID!, deleteVideos: Boolean!): Boolean!
