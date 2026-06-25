@@ -1,42 +1,18 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { UserService } from '@packages/services/user/UserService'
-import { format } from 'date-fns'
 import express, { Response } from 'express'
 import { container } from 'tsyringe'
 
-import { AthleteInviteService } from '@packages/services/athleteInvite/AthleteInviteService'
-import { CompanyService } from '@packages/services/company/CompanyService'
-import SlackService from '@packages/services/communication/SlackService'
-import { UserStatus } from '@packages/enums'
-
+import { CoachSignupService } from '@packages/services/user/CoachSignupService'
+import { UserService } from '@packages/services/user/UserService'
 import { env } from '@packages/utils/validateEnvs'
 import { ReportingService } from '@packages/services/logging/ReportingService'
-
-const buildDefaultTeamName = ({
-	firstName,
-	lastName
-}: {
-	firstName?: string | null
-	lastName?: string | null
-}): string => {
-	const name = [firstName, lastName]
-		.filter(
-			(part): part is string =>
-				typeof part === 'string' && part.trim().length > 0
-		)
-		.map(part => part.trim())
-		.join(' ')
-
-	return name.length > 0 ? name : 'My Team'
-}
 
 export const clerkRouter = express.Router()
 
 clerkRouter.post('/webhook/user-created', async (req, res: Response) => {
 	const reportingService = container.resolve(ReportingService)
-	const userService = container.resolve(UserService)
-	const companyService = container.resolve(CompanyService)
+	const coachSignupService = container.resolve(CoachSignupService)
 	const event = req.body
 	reportingService.log({
 		message: 'Clerk webhook received',
@@ -61,7 +37,8 @@ clerkRouter.post('/webhook/user-created', async (req, res: Response) => {
 
 	const avatarUrl = has_image ? (profile_image_url ?? '') : ''
 
-	const { timezoneName, termsAndConditions, userId, inviteToken } = unsafe_metadata || {}
+	const { timezoneName, termsAndConditions, userId, inviteToken } =
+		unsafe_metadata || {}
 
 	reportingService.log({
 		message: 'Clerk webhook data',
@@ -78,103 +55,24 @@ clerkRouter.post('/webhook/user-created', async (req, res: Response) => {
 		}
 	})
 
-	const companyName = buildDefaultTeamName({
-		firstName: first_name,
-		lastName: last_name
-	})
-
-	const count = await userService.countUsers({ filter: { clerkId: id } })
-
-	if (count > 0) {
-		return res.status(200).json({ ok: true })
-	}
-
 	const email = email_addresses[0]?.email_address
 
 	try {
-		if (userId) {
-			const user = await userService.findUserOrFail({
-				filter: { id: userId }
-			})
-			if (user.status !== UserStatus.Pending) {
-				const error = new Error(
-					`user with id: ${userId} has already been activated`
-				)
-				reportingService.reportError({ error })
-				throw error
-			}
-
-			await userService.updateUser({
-				filter: { id: userId },
-				data: {
-					clerkId: id,
-					email,
-					avatar: avatarUrl,
-					firstName: first_name,
-					lastName: last_name,
-					status: UserStatus.Active
-				}
-			})
-		} else if (inviteToken) {
-			const athleteInviteService = container.resolve(AthleteInviteService)
-
-			await athleteInviteService
-				.completeAthleteInviteSignup({
-					token: inviteToken as string,
-					clerkId: id,
-					profile: {
-						firstName: first_name,
-						lastName: last_name,
-						email,
-						avatar: avatarUrl,
-						termsAndConditions
-					}
-				})
-				.catch((e) => {
-					reportingService.reportError({ error: e as Error })
-				})
-		} else {
-			const user = await userService.createUser({
-				userData: {
-					firstName: first_name,
-					lastName: last_name,
-					email,
-					avatar: avatarUrl,
-					status: UserStatus.Active,
+		await coachSignupService.handleUserCreated({
+			payload: {
+				clerkId: id,
+				firstName: first_name,
+				lastName: last_name,
+				email,
+				avatarUrl,
+				unsafeMetadata: {
+					timezoneName,
 					termsAndConditions,
-					clerkId: id
+					userId,
+					inviteToken
 				}
-			})
-
-			reportingService.log({ message: `created user: ${user.id}` })
-			const { company } = await companyService.createCompany({
-				data: {
-					ownerId: user.id,
-					name: companyName,
-					...(timezoneName !== undefined &&
-						timezoneName !== '' && {
-							settings: {
-								timezoneName
-							}
-						})
-				}
-			})
-
-			reportingService.log({ message: `created company: ${company.id}` })
-			const createdAt = user.createdAt ?? new Date()
-			const registerDate = format(
-				createdAt instanceof Date ? createdAt : new Date(createdAt),
-				'MM/d/yyyy'
-			)
-
-			const message = `New Sign Up: \n First Name: ${user.firstName} \n Last Name: ${user.lastName} \n Company: ${companyName}\n Email: ${user.email} \n Date Registered: ${registerDate}`
-
-			reportingService.log({ message })
-			await SlackService.sendSlackMessage({
-				url: '',
-				message
-			})
-		}
+			}
+		})
 
 		return res.status(200).json({ ok: true })
 	} catch (e) {

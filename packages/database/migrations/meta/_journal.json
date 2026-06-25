@@ -43,6 +43,20 @@
       "when": 1781024000000,
       "tag": "0005_athletes_team_email_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781025000000,
+      "tag": "0006_optional_performance_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781026000000,
+      "tag": "0007_clear_practice_pr_flags",
+      "breakpoints": true
     }
   ]
 }

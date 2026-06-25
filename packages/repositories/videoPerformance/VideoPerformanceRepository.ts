@@ -1,7 +1,8 @@
-import { eq, type SQL } from 'drizzle-orm'
+import { and, eq, inArray, ne, type SQL } from 'drizzle-orm'
 import { inject, injectable, singleton } from 'tsyringe'
 
 import { videoPerformances } from '@packages/database/schema'
+import { getDb } from '@packages/database/createPostgresConnection'
 import { BaseRepository } from '@packages/repositories/BaseRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
@@ -175,6 +176,40 @@ export class VideoPerformanceRepository extends BaseRepository<
 				...performance
 			}))
 		})
+	}
+
+	public async clearPRForAthleteEvent({
+		athleteId,
+		event,
+		teamId,
+		excludeVideoId
+	}: {
+		athleteId: string
+		event: string
+		teamId: string
+		excludeVideoId?: string
+	}): Promise<void> {
+		try {
+			const db = getDb()
+			const conditions: SQL[] = [
+				eq(videoPerformances.athleteId, athleteId),
+				eq(videoPerformances.event, event),
+				eq(videoPerformances.teamId, teamId),
+				eq(videoPerformances.isPR, true)
+			]
+
+			if (excludeVideoId !== undefined) {
+				conditions.push(ne(videoPerformances.videoId, excludeVideoId))
+			}
+
+			await db
+				.update(videoPerformances)
+				.set({ isPR: false, updatedAt: new Date() })
+				.where(and(...conditions))
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
 	}
 
 	public async deleteByAthleteId({

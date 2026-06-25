@@ -5,7 +5,7 @@ interface CreateRunningVideoArgs {
 	data: {
 		team: string
 		sessionId: string
-		event: string
+		event?: string
 		videoUrl: string
 		thumbUrl?: string
 		orientation: string
@@ -13,7 +13,7 @@ interface CreateRunningVideoArgs {
 		recordedAt?: string
 		performances: Array<{
 			athleteId: string
-			result: { type: string; value?: number; reason?: string }
+			result?: { type: string; value?: number; reason?: string } | null
 		}>
 	}
 }
@@ -43,7 +43,10 @@ export const createRunningVideo = async (
 						: new Date(),
 				performances: data.performances.map(performance => ({
 					athleteId: performance.athleteId,
-					result: performance.result as VideoResult
+					result:
+						performance.result !== undefined && performance.result !== null
+							? (performance.result as VideoResult)
+							: null
 				}))
 			}
 		})

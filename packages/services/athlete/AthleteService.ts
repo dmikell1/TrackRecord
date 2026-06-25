@@ -48,15 +48,15 @@ export class AthleteService {
 		const athlete = await this.athleteRepository.create({ data })
 
 		if (!sendInvite) {
-			return { athlete, invite: null }
+			return { athlete, invite: null, inviteEmailSent: null }
 		}
 
-		const invite = await this.athleteInviteService.createAthleteInvite({
+		const { invite, emailSent } = await this.athleteInviteService.createAthleteInvite({
 			teamId: data.teamId,
 			email: athlete.email
 		})
 
-		return { athlete, invite }
+		return { athlete, invite, inviteEmailSent: emailSent }
 	}
 
 	public async bulkCreateAthletes({
@@ -71,7 +71,7 @@ export class AthleteService {
 		sendInvites?: boolean
 	}): Promise<BulkCreateAthletesResult> {
 		if (athletes.length === 0) {
-			return { created: [], skipped: [], failed: [] }
+			return { created: [], skipped: [], failed: [], inviteEmailsFailed: [] }
 		}
 
 		if (athletes.length > MAX_BULK_ATHLETES) {
@@ -89,6 +89,7 @@ export class AthleteService {
 
 		const skipped: BulkAthleteImportRowResult[] = []
 		const failed: BulkAthleteImportRowResult[] = []
+		const inviteEmailsFailed: BulkAthleteImportRowResult[] = []
 		const emailsInBatch = new Set<string>()
 		const rowsToCreate: Array<{
 			row: number
@@ -177,16 +178,26 @@ export class AthleteService {
 
 		if (sendInvites) {
 			await Promise.all(
-				created.map(athlete =>
-					this.athleteInviteService.createAthleteInvite({
-						teamId,
-						email: athlete.email
-					})
-				)
+				created.map(async (athlete, index) => {
+					const rowEntry = rowsToCreate[index]
+					const { emailSent } =
+						await this.athleteInviteService.createAthleteInvite({
+							teamId,
+							email: athlete.email
+						})
+
+					if (!emailSent) {
+						inviteEmailsFailed.push({
+							row: rowEntry?.row ?? index,
+							email: athlete.email,
+							reason: BulkAthleteImportIssueReason.InviteEmailFailed
+						})
+					}
+				})
 			)
 		}
 
-		return { created, skipped, failed }
+		return { created, skipped, failed, inviteEmailsFailed }
 	}
 
 	public async findAthlete({ filter }: { filter: AthleteFilter }): Promise<AthleteInterface | null> {

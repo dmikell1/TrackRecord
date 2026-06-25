@@ -33,9 +33,16 @@ export interface BulkCreateAthletesResult {
 	created: AthleteInterface[]
 	skipped: BulkAthleteImportRowResult[]
 	failed: BulkAthleteImportRowResult[]
+	inviteEmailsFailed: BulkAthleteImportRowResult[]
+}
+
+export interface CreateAthleteInviteResult {
+	invite: AthleteInviteInterface
+	emailSent: boolean
 }
 
 export interface CreateAthleteResult {
 	athlete: AthleteInterface
 	invite: AthleteInviteInterface | null
+	inviteEmailSent: boolean | null
 }

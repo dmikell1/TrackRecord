@@ -5,7 +5,7 @@ import { authorizationRules } from './authorizationRules'
 export const permissions = {
 	Query: {
 		root: authorizationRules.withPublicAccess,
-		me: authorizationRules.isAuthenticated,
+		me: authorizationRules.isClerkOrAppAuthenticated,
 		// Track Record queries
 		trainingSessions: authorizationRules.withTeamAccess,
 		trainingSession: authorizationRules.withTeamAccess,

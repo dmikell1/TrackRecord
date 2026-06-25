@@ -189,7 +189,7 @@ export const videoPerformances = pgTable(
 		athleteId: uuid('athlete_id')
 			.notNull()
 			.references(() => athletes.id, { onDelete: 'cascade' }),
-		event: varchar('event', { length: 50 }).notNull(),
+		event: varchar('event', { length: 50 }),
 		result: jsonb('result').$type<{
 			type: 'Foul' | 'Mark' | 'VerticalHeights' | 'Time' | 'DNF' | 'DQ'
 			value?: number
