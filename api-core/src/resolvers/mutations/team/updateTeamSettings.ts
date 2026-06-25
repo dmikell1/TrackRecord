@@ -1,4 +1,4 @@
-import type { CoachingLevel, EventGroup, TrackEvent } from '@packages/enums/trackRecord'
+import type { AccountHolderType, CoachingLevel, EventGroup, TrackEvent } from '@packages/enums/trackRecord'
 import type { Context } from '@packages/types'
 import type { TeamInterface } from '@packages/types/team'
 
@@ -6,6 +6,7 @@ interface UpdateTeamSettingsArgs {
 	team: string
 	settings: {
 		units?: string
+		accountHolderType?: AccountHolderType
 		coachingLevels?: CoachingLevel[]
 		focusedEventGroups?: EventGroup[]
 		enabledEvents?: TrackEvent[]
@@ -24,6 +25,9 @@ export const updateTeamSettings = async (
 			settings: {
 				...(settings.units !== undefined && {
 					units: settings.units as 'imperial' | 'metric'
+				}),
+				...(settings.accountHolderType !== undefined && {
+					accountHolderType: settings.accountHolderType
 				}),
 				...(settings.coachingLevels !== undefined && {
 					coachingLevels: settings.coachingLevels

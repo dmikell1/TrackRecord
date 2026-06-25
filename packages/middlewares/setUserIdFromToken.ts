@@ -6,6 +6,7 @@ import { Session } from 'express-session'
 import { container } from 'tsyringe'
 
 import { ReportingService } from '@packages/services/logging/ReportingService'
+import { CoachSignupService } from '@packages/services/user/CoachSignupService'
 import { UserService } from '@packages/services/user/UserService'
 import { UserInterface } from '@packages/types'
 import { env } from '@packages/utils/validateEnvs'
@@ -64,6 +65,7 @@ export const setUserIdFromToken = async (
 	next: NextFunction
 ): Promise<void> => {
 	const userService = container.resolve(UserService)
+	const coachSignupService = container.resolve(CoachSignupService)
 	const reportingService = container.resolve(ReportingService)
 	const authorization = readHeader({ req, name: 'authorization' })
 
@@ -116,7 +118,7 @@ export const setUserIdFromToken = async (
 			req.session.clerkId = sub
 		}
 
-		const user = await userService.findUser({
+		let user = await userService.findUser({
 			filter: { clerkId: sub },
 			relations: {
 				loadCompanies: true,
@@ -124,6 +126,18 @@ export const setUserIdFromToken = async (
 				loadRoles: true
 			}
 		})
+
+		if (!user && sub) {
+			try {
+				user = await coachSignupService.provisionFromClerkIdIfMissing({
+					clerkId: sub
+				})
+			} catch (provisionError) {
+				reportingService.reportError({
+					error: provisionError as Error
+				})
+			}
+		}
 
 		if (user) {
 			req.session.userId = user.id

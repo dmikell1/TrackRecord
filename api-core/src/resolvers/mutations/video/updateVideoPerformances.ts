@@ -5,10 +5,10 @@ interface UpdateVideoPerformancesArgs {
 	id: string
 	data: {
 		team: string
-		event: string
+		event?: string | null
 		performances: Array<{
 			athleteId: string
-			result: { type: string; value?: number; reason?: string }
+			result?: { type: string; value?: number; reason?: string } | null
 		}>
 	}
 }
@@ -29,7 +29,10 @@ export const updateVideoPerformances = async (
 			event: data.event,
 			performances: data.performances.map(performance => ({
 				athleteId: performance.athleteId,
-				result: performance.result as VideoResult
+				result:
+					performance.result !== undefined && performance.result !== null
+						? (performance.result as VideoResult)
+						: null
 			}))
 		})
 	} catch (e) {

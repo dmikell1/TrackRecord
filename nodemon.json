@@ -1,5 +1,5 @@
 {
-  "watch": ["api-core"],
+  "watch": ["api-core", "packages"],
   "ext": "ts, tsx, graphql",
   "ignore": ["src/**/*.test.ts"],
   "exec": "./scripts/dev.sh",

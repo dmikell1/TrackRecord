@@ -88,7 +88,7 @@ describe('AthleteInviteService', () => {
 
 			const result = await service.createAthleteInvite({ teamId: 'team-1', email: 'runner@example.com' })
 
-			expect(result).toEqual(expectedInvite)
+			expect(result).toEqual({ invite: expectedInvite, emailSent: true })
 			expect(mockAthleteInviteRepository.create).toHaveBeenCalledWith({
 				data: expect.objectContaining({
 					teamId: 'team-1',
@@ -107,6 +107,24 @@ describe('AthleteInviteService', () => {
 			const diffDays = (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
 			expect(diffDays).toBeGreaterThanOrEqual(6.9)
 			expect(diffDays).toBeLessThanOrEqual(7.1)
+		})
+
+		it('returns emailSent false when invite email fails', async () => {
+			const expectedInvite = buildMockAthleteInvite({
+				teamId: 'team-1',
+				email: 'runner@example.com'
+			})
+			mockAthleteInviteRepository.create.mockResolvedValue(expectedInvite)
+			mockQueueService.scheduleSendEmail.mockRejectedValue(
+				new Error('Email service is not configured')
+			)
+
+			const result = await service.createAthleteInvite({
+				teamId: 'team-1',
+				email: 'runner@example.com'
+			})
+
+			expect(result).toEqual({ invite: expectedInvite, emailSent: false })
 		})
 	})
 

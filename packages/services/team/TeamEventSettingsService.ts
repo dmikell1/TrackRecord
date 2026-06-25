@@ -34,6 +34,9 @@ export class TeamEventSettingsService {
 			...(settings?.inviteToken !== undefined && {
 				inviteToken: settings.inviteToken
 			}),
+			...(settings?.accountHolderType !== undefined && {
+				accountHolderType: settings.accountHolderType
+			}),
 			coachingLevels,
 			focusedEventGroups,
 			enabledEvents

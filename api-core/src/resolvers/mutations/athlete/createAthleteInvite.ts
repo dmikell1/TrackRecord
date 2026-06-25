@@ -15,7 +15,11 @@ export const createAthleteInvite = async (
 ): Promise<AthleteInviteInterface> => {
 	reportingService.startTrace({ op: 'createAthleteInvite', name: 'createAthleteInvite' })
 	try {
-		return await athleteInviteService.createAthleteInvite({ teamId: data.team, email: data.email })
+		const { invite } = await athleteInviteService.createAthleteInvite({
+			teamId: data.team,
+			email: data.email
+		})
+		return invite
 	} catch (e) {
 		reportingService.reportError({ error: e as Error })
 		throw new Error((e as Error).message)

@@ -3,6 +3,7 @@ import { FeatureFlag } from '@packages/enums/featureFlag'
 import { NotificationType } from '@packages/enums/notifications'
 import {
 	AthleteInviteStatus,
+	AccountHolderType,
 	BulkAthleteImportIssueReason,
 	CoachingLevel,
 	EventGroup,
@@ -25,6 +26,7 @@ export {
 	TrackEvent,
 	VideoResultType,
 	AthleteInviteStatus,
+	AccountHolderType,
 	BulkAthleteImportIssueReason,
 	CoachingLevel,
 	EventGroup,

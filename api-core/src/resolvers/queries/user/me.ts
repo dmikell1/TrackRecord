@@ -1,3 +1,6 @@
+import { container } from 'tsyringe'
+
+import { CoachSignupService } from '@packages/services/user/CoachSignupService'
 import { Context, UserInterface } from '@packages/types'
 
 export const me = async (
@@ -7,17 +10,34 @@ export const me = async (
 ): Promise<UserInterface | undefined> => {
 	reportingService.startTrace({ op: 'me', name: 'me' })
 	try {
-		if (req.session.userId) {
-			return await userService.findUserOrFail({
-				filter: { id: req.session.userId },
-				relations: {
-					loadCompanies: true,
-					loadTeams: true,
-					loadRoles: true
-				}
-			})
+		let userId = req.session.userId
+
+		if (!userId && req.session.clerkId) {
+			const coachSignupService = container.resolve(CoachSignupService)
+			const provisionedUser =
+				await coachSignupService.provisionFromClerkIdIfMissing({
+					clerkId: req.session.clerkId
+				})
+
+			if (provisionedUser) {
+				req.session.userId = provisionedUser.id
+				req.session.user = provisionedUser
+				userId = provisionedUser.id
+			}
 		}
-		return undefined
+
+		if (!userId) {
+			return undefined
+		}
+
+		return await userService.findUserOrFail({
+			filter: { id: userId },
+			relations: {
+				loadCompanies: true,
+				loadTeams: true,
+				loadRoles: true
+			}
+		})
 	} catch (e) {
 		reportingService.reportError({ error: e as Error })
 		throw new Error((e as Error).message)

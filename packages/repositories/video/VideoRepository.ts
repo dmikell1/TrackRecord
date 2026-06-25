@@ -1,4 +1,4 @@
-import { and, eq, inArray, type SQL } from 'drizzle-orm'
+import { and, eq, inArray, ne, type SQL } from 'drizzle-orm'
 import { inject, injectable, singleton } from 'tsyringe'
 
 import { videos } from '@packages/database/schema'
@@ -187,6 +187,65 @@ export class VideoRepository extends BaseRepository<
 			await db
 				.delete(videos)
 				.where(and(eq(videos.athleteId, athleteId), eq(videos.teamId, teamId)))
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
+	}
+
+	public async clearPRForAthleteEvent({
+		athleteId,
+		event,
+		teamId,
+		excludeVideoId
+	}: {
+		athleteId: string
+		event: string
+		teamId: string
+		excludeVideoId?: string
+	}): Promise<void> {
+		try {
+			const db = getDb()
+			const conditions: SQL[] = [
+				eq(videos.athleteId, athleteId),
+				eq(videos.event, event),
+				eq(videos.teamId, teamId),
+				eq(videos.isPR, true)
+			]
+
+			if (excludeVideoId !== undefined) {
+				conditions.push(ne(videos.id, excludeVideoId))
+			}
+
+			await db
+				.update(videos)
+				.set({ isPR: false, updatedAt: new Date() })
+				.where(and(...conditions))
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
+	}
+
+	public async findByIds({
+		ids,
+		teamId
+	}: {
+		ids: string[]
+		teamId: string
+	}): Promise<VideoInterface[]> {
+		if (ids.length === 0) {
+			return []
+		}
+
+		try {
+			const db = getDb()
+			const rows = await db
+				.select()
+				.from(videos)
+				.where(and(inArray(videos.id, ids), eq(videos.teamId, teamId)))
+
+			return rows.map(row => this.mapRow(row))
 		} catch (error) {
 			this.reportingService.reportError({ error: error as Error })
 			throw error

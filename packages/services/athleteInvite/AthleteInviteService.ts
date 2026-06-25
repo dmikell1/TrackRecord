@@ -52,10 +52,10 @@ export class AthleteInviteService {
 	public async createAthleteInvite({ teamId, email }: {
 		teamId: string
 		email: string
-	}): Promise<AthleteInviteInterface> {
+	}): Promise<{ invite: AthleteInviteInterface; emailSent: boolean }> {
 		const invite = await this.createAthleteInviteRecord({ teamId, email })
-		await this.queueAthleteInviteEmail({ invite })
-		return invite
+		const emailSent = await this.tryQueueAthleteInviteEmail({ invite })
+		return { invite, emailSent }
 	}
 
 	public async getAthleteInviteLink({
@@ -494,6 +494,25 @@ export class AthleteInviteService {
 		}
 
 		return invite
+	}
+
+	private async tryQueueAthleteInviteEmail({
+		invite
+	}: {
+		invite: AthleteInviteInterface
+	}): Promise<boolean> {
+		try {
+			await this.queueAthleteInviteEmail({ invite })
+			return true
+		} catch (error) {
+			this.reportingService.error('Failed to send athlete invite email', {
+				error,
+				inviteId: invite.id,
+				email: invite.email,
+				teamId: invite.teamId
+			})
+			return false
+		}
 	}
 
 	private async queueAthleteInviteEmail({

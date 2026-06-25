@@ -7,6 +7,7 @@ export const TrackRecord = gql`
 
 	type TeamSettings {
 		units: String
+		accountHolderType: AccountHolderType
 		coachingLevels: [CoachingLevel!]!
 		focusedEventGroups: [EventGroup!]!
 		enabledEvents: [TrackEvent!]!
@@ -25,6 +26,11 @@ export const TrackRecord = gql`
 		College
 		Professional
 		Club
+	}
+
+	enum AccountHolderType {
+		Coach
+		Parent
 	}
 
 	enum EventGroup {
@@ -102,6 +108,7 @@ export const TrackRecord = gql`
 		InvalidEmail
 		DuplicateInBatch
 		AlreadyOnTeam
+		InviteEmailFailed
 	}
 
 	enum JoinInviteKind {
@@ -165,6 +172,7 @@ export const TrackRecord = gql`
 		created: [Athlete!]!
 		skipped: [BulkAthleteImportRowResult!]!
 		failed: [BulkAthleteImportRowResult!]!
+		inviteEmailsFailed: [BulkAthleteImportRowResult!]!
 	}
 
 	type TrainingSession {
@@ -297,6 +305,7 @@ export const TrackRecord = gql`
 	type CreateAthleteResult {
 		athlete: Athlete!
 		invite: AthleteInvite
+		inviteEmailSent: Boolean
 	}
 
 	input UpdateAthleteInput {
@@ -337,13 +346,13 @@ export const TrackRecord = gql`
 
 	input PerformanceInput {
 		athleteId: ID!
-		result: VideoResultInput!
+		result: VideoResultInput
 	}
 
 	input CreateRunningVideoInput {
 		team: ID!
 		sessionId: ID!
-		event: TrackEvent!
+		event: TrackEvent
 		videoUrl: String!
 		thumbUrl: String
 		orientation: String!
@@ -354,7 +363,7 @@ export const TrackRecord = gql`
 
 	input UpdateVideoPerformancesInput {
 		team: ID!
-		event: TrackEvent!
+		event: TrackEvent
 		performances: [PerformanceInput!]!
 	}
 
@@ -395,6 +404,7 @@ export const TrackRecord = gql`
 
 	input TeamSettingsInput {
 		units: String
+		accountHolderType: AccountHolderType
 		coachingLevels: [CoachingLevel!]
 		focusedEventGroups: [EventGroup!]
 		enabledEvents: [TrackEvent!]

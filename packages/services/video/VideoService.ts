@@ -62,12 +62,26 @@ export class VideoService {
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
 
+	private async getMeetSessionIds({
+		teamId
+	}: {
+		teamId: string
+	}): Promise<Set<string>> {
+		const meetSessions = await this.trainingSessionRepository.find({
+			filter: { teamId, type: SessionType.Meet }
+		})
+
+		return new Set(meetSessions.map(session => session.id))
+	}
+
 	private async detectPR({
+		teamId,
 		athleteId,
 		event,
 		result,
 		excludeVideoId
 	}: {
+		teamId: string
 		athleteId: string
 		event: string
 		result: VideoResult | null | undefined
@@ -78,19 +92,45 @@ export class VideoService {
 			return false
 		}
 
-		const previousVideos = await this.videoRepository.find({
-			filter: { athleteId, event }
-		})
+		const meetSessionIds = await this.getMeetSessionIds({ teamId })
+
+		const previousVideos = (
+			await this.videoRepository.find({
+				filter: { athleteId, event, teamId }
+			})
+		).filter(
+			video =>
+				meetSessionIds.has(video.sessionId) && video.id !== excludeVideoId
+		)
 		const previousPerformances = await this.videoPerformanceRepository.find({
-			filter: { athleteId, event }
+			filter: { athleteId, event, teamId }
 		})
+		const performanceVideoIds = [
+			...new Set(previousPerformances.map(performance => performance.videoId))
+		]
+		const performanceVideos =
+			performanceVideoIds.length > 0
+				? await this.videoRepository.findByIds({
+						ids: performanceVideoIds,
+						teamId
+					})
+				: []
+		const meetPerformanceVideoIds = new Set(
+			performanceVideos
+				.filter(video => meetSessionIds.has(video.sessionId))
+				.map(video => video.id)
+		)
 
 		const previousValues = [
-			...previousVideos
-				.filter(video => video.id !== excludeVideoId)
-				.map(video => getComparableResultValue({ result: video.result })),
+			...previousVideos.map(video =>
+				getComparableResultValue({ result: video.result })
+			),
 			...previousPerformances
-				.filter(performance => performance.videoId !== excludeVideoId)
+				.filter(
+					performance =>
+						meetPerformanceVideoIds.has(performance.videoId) &&
+						performance.videoId !== excludeVideoId
+				)
 				.map(performance =>
 					getComparableResultValue({ result: performance.result })
 				)
@@ -110,6 +150,83 @@ export class VideoService {
 			previousValue: previousBest,
 			event
 		})
+	}
+
+	private async clearPreviousPRFlags({
+		teamId,
+		athleteId,
+		event,
+		excludeVideoId
+	}: {
+		teamId: string
+		athleteId: string
+		event: string
+		excludeVideoId?: string
+	}): Promise<void> {
+		await this.videoRepository.clearPRForAthleteEvent({
+			athleteId,
+			event,
+			teamId,
+			excludeVideoId
+		})
+		await this.videoPerformanceRepository.clearPRForAthleteEvent({
+			athleteId,
+			event,
+			teamId,
+			excludeVideoId
+		})
+	}
+
+	private async resolvePRForTaggedResult({
+		teamId,
+		sessionId,
+		athleteId,
+		event,
+		result,
+		excludeVideoId
+	}: {
+		teamId: string
+		sessionId: string
+		athleteId: string
+		event: string
+		result: VideoResult | null | undefined
+		excludeVideoId?: string
+	}): Promise<boolean> {
+		const isPractice = await this.isPracticeSession({ sessionId })
+		if (isPractice) {
+			return false
+		}
+
+		const isPR = await this.detectPR({
+			teamId,
+			athleteId,
+			event,
+			result,
+			excludeVideoId
+		})
+
+		if (isPR) {
+			await this.clearPreviousPRFlags({
+				teamId,
+				athleteId,
+				event,
+				excludeVideoId
+			})
+		}
+
+		return isPR
+	}
+
+	private async isPracticeSession({
+		sessionId
+	}: {
+		sessionId: string
+	}): Promise<boolean> {
+		const session = await this.trainingSessionRepository.findOne({
+			filter: { id: sessionId }
+		})
+
+		return session?.type === SessionType.Practice
 	}
 
 	public async createVideo({
@@ -137,7 +254,9 @@ export class VideoService {
 			data.athleteId !== undefined &&
 			data.event !== null &&
 			data.event !== undefined
-				? await this.detectPR({
+				? await this.resolvePRForTaggedResult({
+						teamId: data.teamId,
+						sessionId: data.sessionId,
 						athleteId: data.athleteId,
 						event: data.event,
 						result: data.result
@@ -150,35 +269,86 @@ export class VideoService {
 		data
 	}: {
 		data: Pick<VideoInterface, 'sessionId' | 'teamId' | 'videoUrl' | 'orientation'> &
-			Pick<VideoInterface, 'event'> &
-			Partial<Pick<VideoInterface, 'thumbUrl' | 'durationMs' | 'recordedAt'>> & {
+			Partial<Pick<VideoInterface, 'event' | 'thumbUrl' | 'durationMs' | 'recordedAt'>> & {
 				performances: Array<{
 					athleteId: string
-					result: VideoResult
+					result: VideoResult | null | undefined
 				}>
 			}
 	}): Promise<VideoInterface> {
-		if (!data.event || !isTimedEvent({ event: data.event })) {
+		const isPractice = await this.isPracticeSession({
+			sessionId: data.sessionId
+		})
+
+		if (data.event && !isTimedEvent({ event: data.event })) {
 			throw new Error('Running videos require a timed event')
 		}
 
-		if (data.performances.length === 0) {
-			throw new Error('Add at least one athlete result')
+		if (!isPractice) {
+			if (!data.event || !isTimedEvent({ event: data.event })) {
+				throw new Error('Running videos require a timed event')
+			}
+
+			if (data.performances.length === 0) {
+				throw new Error('Add at least one athlete result')
+			}
 		}
 
-		const athleteIds = data.performances.map(performance => performance.athleteId)
-		if (new Set(athleteIds).size !== athleteIds.length) {
-			throw new Error('Each athlete can only appear once per video')
+		if (data.performances.length > 0) {
+			const athleteIds = data.performances.map(
+				performance => performance.athleteId
+			)
+			if (new Set(athleteIds).size !== athleteIds.length) {
+				throw new Error('Each athlete can only appear once per video')
+			}
+
+			if (!isPractice) {
+				for (const performance of data.performances) {
+					if (
+						performance.result === null ||
+						performance.result === undefined
+					) {
+						throw new Error('Add at least one athlete result')
+					}
+				}
+			}
+		}
+
+		if (data.performances.length === 0) {
+			const video = await this.videoRepository.create({
+				data: {
+					sessionId: data.sessionId,
+					teamId: data.teamId,
+					videoUrl: data.videoUrl,
+					orientation: data.orientation,
+					event: data.event ?? null,
+					thumbUrl: data.thumbUrl,
+					durationMs: data.durationMs,
+					recordedAt: data.recordedAt,
+					isPR: false
+				}
+			})
+
+			return { ...video, performances: [] }
 		}
 
 		const performancesWithPR = await Promise.all(
 			data.performances.map(async performance => ({
 				...performance,
-				isPR: await this.detectPR({
-					athleteId: performance.athleteId,
-					event: data.event!,
-					result: performance.result
-				})
+				isPR:
+					!isPractice &&
+					performance.result !== null &&
+					performance.result !== undefined &&
+					data.event !== null &&
+					data.event !== undefined
+						? await this.resolvePRForTaggedResult({
+								teamId: data.teamId,
+								sessionId: data.sessionId,
+								athleteId: performance.athleteId,
+								event: data.event,
+								result: performance.result
+							})
+						: false
 			}))
 		)
 
@@ -188,7 +358,7 @@ export class VideoService {
 				teamId: data.teamId,
 				videoUrl: data.videoUrl,
 				orientation: data.orientation,
-				event: data.event,
+				event: data.event ?? null,
 				thumbUrl: data.thumbUrl,
 				durationMs: data.durationMs,
 				recordedAt: data.recordedAt,
@@ -201,8 +371,8 @@ export class VideoService {
 				videoId: video.id,
 				teamId: data.teamId,
 				athleteId: performance.athleteId,
-				event: data.event!,
-				result: performance.result,
+				event: data.event ?? null,
+				result: performance.result ?? null,
 				isPR: performance.isPR
 			}))
 		})
@@ -218,45 +388,102 @@ export class VideoService {
 	}: {
 		videoId: string
 		teamId: string
-		event: string
+		event?: string | null
 		performances: Array<{
 			athleteId: string
-			result: VideoResult
+			result: VideoResult | null | undefined
 		}>
 	}): Promise<VideoInterface> {
 		const existing = await this.findVideoOrFail({
 			filter: { id: videoId, teamId }
 		})
 
-		if (!isTimedEvent({ event })) {
+		const isPractice = await this.isPracticeSession({
+			sessionId: existing.sessionId
+		})
+
+		if (event && !isTimedEvent({ event })) {
 			throw new Error('Performances are only supported for timed events')
 		}
 
-		if (performances.length === 0) {
-			throw new Error('Add at least one athlete result')
+		if (!isPractice) {
+			if (!event || !isTimedEvent({ event })) {
+				throw new Error('Performances are only supported for timed events')
+			}
+
+			if (performances.length === 0) {
+				throw new Error('Add at least one athlete result')
+			}
 		}
 
-		const athleteIds = performances.map(performance => performance.athleteId)
-		if (new Set(athleteIds).size !== athleteIds.length) {
-			throw new Error('Each athlete can only appear once per video')
+		if (performances.length > 0) {
+			const athleteIds = performances.map(performance => performance.athleteId)
+			if (new Set(athleteIds).size !== athleteIds.length) {
+				throw new Error('Each athlete can only appear once per video')
+			}
+
+			if (!isPractice) {
+				for (const performance of performances) {
+					if (
+						performance.result === null ||
+						performance.result === undefined
+					) {
+						throw new Error('Add at least one athlete result')
+					}
+				}
+			}
+		}
+
+		if (performances.length === 0) {
+			await this.videoRepository.update({
+				filter: { id: videoId, teamId },
+				data: {
+					event: event ?? null,
+					athleteId: null,
+					result: null,
+					isPR: false
+				}
+			})
+			await this.videoPerformanceRepository.deleteByVideoId({
+				videoId,
+				teamId
+			})
+
+			return {
+				...existing,
+				event: event ?? null,
+				athleteId: null,
+				result: null,
+				isPR: false,
+				performances: []
+			}
 		}
 
 		const performancesWithPR = await Promise.all(
 			performances.map(async performance => ({
 				...performance,
-				isPR: await this.detectPR({
-					athleteId: performance.athleteId,
-					event,
-					result: performance.result,
-					excludeVideoId: videoId
-				})
+				isPR:
+					!isPractice &&
+					performance.result !== null &&
+					performance.result !== undefined &&
+					event !== null &&
+					event !== undefined
+						? await this.resolvePRForTaggedResult({
+								teamId,
+								sessionId: existing.sessionId,
+								athleteId: performance.athleteId,
+								event,
+								result: performance.result,
+								excludeVideoId: videoId
+							})
+						: false
 			}))
 		)
 
 		await this.videoRepository.update({
 			filter: { id: videoId, teamId },
 			data: {
-				event,
+				event: event ?? null,
 				athleteId: null,
 				result: null,
 				isPR: performancesWithPR.some(performance => performance.isPR)
@@ -268,15 +495,15 @@ export class VideoService {
 			teamId,
 			performances: performancesWithPR.map(performance => ({
 				athleteId: performance.athleteId,
-				event,
-				result: performance.result,
+				event: event ?? null,
+				result: performance.result ?? null,
 				isPR: performance.isPR
 			}))
 		})
 
 		return {
 			...existing,
-			event,
+			event: event ?? null,
 			athleteId: null,
 			result: null,
 			isPR: performancesWithPR.some(performance => performance.isPR),
@@ -424,7 +651,9 @@ export class VideoService {
 					event !== null &&
 					result !== null &&
 					result !== undefined
-						? await this.detectPR({
+						? await this.resolvePRForTaggedResult({
+								teamId: existing.teamId,
+								sessionId: existing.sessionId,
 								athleteId,
 								event,
 								result,

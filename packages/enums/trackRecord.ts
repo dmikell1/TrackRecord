@@ -11,6 +11,11 @@ export enum CoachingLevel {
 	Club = 'Club'
 }
 
+export enum AccountHolderType {
+	Coach = 'Coach',
+	Parent = 'Parent'
+}
+
 export enum EventGroup {
 	Sprints = 'Sprints',
 	MiddleDistance = 'MiddleDistance',
@@ -95,5 +100,6 @@ export enum BulkAthleteImportIssueReason {
 	MissingName = 'MissingName',
 	InvalidEmail = 'InvalidEmail',
 	DuplicateInBatch = 'DuplicateInBatch',
-	AlreadyOnTeam = 'AlreadyOnTeam'
+	AlreadyOnTeam = 'AlreadyOnTeam',
+	InviteEmailFailed = 'InviteEmailFailed'
 }

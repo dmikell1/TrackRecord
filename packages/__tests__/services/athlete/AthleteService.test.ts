@@ -135,6 +135,56 @@ describe('AthleteService', () => {
 			expect(mockAthleteInviteService.createAthleteInvite).not.toHaveBeenCalled()
 		})
 
+		it('should report invite email failures without failing import', async () => {
+			const team = buildMockTeam({ id: 'team-1', companyId: 'company-1' })
+			const createdAthlete = buildMockAthlete({
+				email: 'invite@example.com',
+				teamId: team.id,
+				companyId: team.companyId
+			})
+			const createdInvite = {
+				id: 'invite-1',
+				teamId: team.id,
+				email: createdAthlete.email,
+				token: 'token-1',
+				status: 'Pending',
+				expiresAt: new Date(),
+				acceptedByUserId: null,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			}
+
+			mockTeamRepository.findOne.mockResolvedValue(team)
+			mockAthleteRepository.findByEmailsInTeam.mockResolvedValue([])
+			mockAthleteRepository.createMany.mockResolvedValue([createdAthlete])
+			mockAthleteInviteService.createAthleteInvite.mockResolvedValue({
+				invite: createdInvite,
+				emailSent: false
+			})
+
+			const result = await athleteService.bulkCreateAthletes({
+				teamId: team.id,
+				companyId: team.companyId,
+				athletes: [
+					{
+						firstName: 'Invite',
+						lastName: 'Me',
+						email: 'invite@example.com'
+					}
+				],
+				sendInvites: true
+			})
+
+			expect(result.created).toEqual([createdAthlete])
+			expect(result.inviteEmailsFailed).toEqual([
+				{
+					row: 0,
+					email: 'invite@example.com',
+					reason: BulkAthleteImportIssueReason.InviteEmailFailed
+				}
+			])
+		})
+
 		it('should queue invites when sendInvites is true', async () => {
 			const team = buildMockTeam({ id: 'team-1', companyId: 'company-1' })
 			const createdAthlete = buildMockAthlete({
@@ -147,15 +197,18 @@ describe('AthleteService', () => {
 			mockAthleteRepository.findByEmailsInTeam.mockResolvedValue([])
 			mockAthleteRepository.createMany.mockResolvedValue([createdAthlete])
 			mockAthleteInviteService.createAthleteInvite.mockResolvedValue({
-				id: 'invite-1',
-				teamId: team.id,
-				email: createdAthlete.email,
-				token: 'token-1',
-				status: 'Pending',
-				expiresAt: new Date(),
-				acceptedByUserId: null,
-				createdAt: new Date(),
-				updatedAt: new Date()
+				invite: {
+					id: 'invite-1',
+					teamId: team.id,
+					email: createdAthlete.email,
+					token: 'token-1',
+					status: 'Pending',
+					expiresAt: new Date(),
+					acceptedByUserId: null,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				},
+				emailSent: true
 			})
 
 			await athleteService.bulkCreateAthletes({
@@ -197,9 +250,10 @@ describe('AthleteService', () => {
 			}
 
 			mockAthleteRepository.create.mockResolvedValue(createdAthlete)
-			mockAthleteInviteService.createAthleteInvite.mockResolvedValue(
-				createdInvite
-			)
+			mockAthleteInviteService.createAthleteInvite.mockResolvedValue({
+				invite: createdInvite,
+				emailSent: true
+			})
 
 			const result = await athleteService.createAthlete({
 				data: {
@@ -215,7 +269,8 @@ describe('AthleteService', () => {
 
 			expect(result).toEqual({
 				athlete: createdAthlete,
-				invite: createdInvite
+				invite: createdInvite,
+				inviteEmailSent: true
 			})
 			expect(mockAthleteInviteService.createAthleteInvite).toHaveBeenCalledWith({
 				teamId: 'team-1',

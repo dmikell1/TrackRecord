@@ -5,7 +5,7 @@ export interface VideoPerformanceInterface {
 	videoId: string
 	teamId: string
 	athleteId: string
-	event: string
+	event: string | null
 	result: VideoResult | null
 	isPR: boolean
 	createdAt: Date
