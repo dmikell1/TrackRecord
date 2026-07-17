@@ -5,6 +5,7 @@ import { SessionType, TrackEvent } from '@packages/enums'
 import { TrainingSessionRepository } from '@packages/repositories/trainingSession/TrainingSessionRepository'
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
 import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
+import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { VideoService } from '@packages/services/video/VideoService'
 
@@ -12,27 +13,39 @@ import { buildMockTrainingSession } from '@builders/trainingSession'
 import {
 	buildMockVideo,
 	buildMarkResult,
+	buildTimeResult,
 	buildVerticalHeightsResult,
 	buildVerticalMarkResult,
 	buildFoulResult
 } from '@builders/video'
+import { buildMockVideoPerformance } from '@builders/videoPerformance'
 
 describe('VideoService', () => {
 	let videoService: VideoService
 	let mockVideoRepository: jest.Mocked<VideoRepository>
 	let mockVideoPerformanceRepository: jest.Mocked<VideoPerformanceRepository>
 	let mockTrainingSessionRepository: jest.Mocked<TrainingSessionRepository>
+	let mockEntitlementService: jest.Mocked<EntitlementService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
 	beforeEach(() => {
 		mockVideoRepository = mock<VideoRepository>()
 		mockVideoPerformanceRepository = mock<VideoPerformanceRepository>()
 		mockTrainingSessionRepository = mock<TrainingSessionRepository>()
+		mockEntitlementService = mock<EntitlementService>()
 		mockReportingService = mock<ReportingService>()
 
 		mockReportingService.withTrace.mockImplementation(({ fn }) => fn())
+		mockEntitlementService.assertCanWrite.mockResolvedValue(undefined)
 		mockVideoPerformanceRepository.find.mockResolvedValue([])
-		mockTrainingSessionRepository.findOne.mockResolvedValue(null)
+		mockTrainingSessionRepository.findOne.mockResolvedValue(
+			buildMockTrainingSession({
+				id: 'session-1',
+				teamId: 'team-1',
+				companyId: 'company-1',
+				type: SessionType.Meet
+			})
+		)
 		mockTrainingSessionRepository.find.mockResolvedValue([
 			buildMockTrainingSession({
 				id: 'session-1',
@@ -45,6 +58,7 @@ describe('VideoService', () => {
 			undefined
 		)
 		mockVideoRepository.findByIds.mockResolvedValue([])
+		mockVideoRepository.update.mockResolvedValue(null)
 
 		container.registerInstance(VideoRepository, mockVideoRepository)
 		container.registerInstance(
@@ -55,6 +69,7 @@ describe('VideoService', () => {
 			TrainingSessionRepository,
 			mockTrainingSessionRepository
 		)
+		container.registerInstance(EntitlementService, mockEntitlementService)
 		container.registerInstance(ReportingService, mockReportingService)
 
 		videoService = container.resolve(VideoService)
@@ -68,7 +83,13 @@ describe('VideoService', () => {
 	describe('createVideo — PR detection', () => {
 		it('marks video as PR when athlete has no prior videos', async () => {
 			mockVideoRepository.find.mockResolvedValue([])
-			const newVideo = buildMockVideo({ isPR: true, result: buildMarkResult({ value: 10.5 }) })
+			mockVideoRepository.findOne.mockResolvedValue(
+				buildMockVideo({ isPR: true, result: buildMarkResult({ value: 10.5 }) })
+			)
+			const newVideo = buildMockVideo({
+				isPR: false,
+				result: buildMarkResult({ value: 10.5 })
+			})
 			mockVideoRepository.create.mockResolvedValue(newVideo)
 
 			const result = await videoService.createVideo({
@@ -85,18 +106,26 @@ describe('VideoService', () => {
 
 			expect(result.isPR).toBe(true)
 			expect(mockVideoRepository.create).toHaveBeenCalledWith({
-				data: expect.objectContaining({ isPR: true })
+				data: expect.objectContaining({ isPR: false })
 			})
+			expect(mockVideoRepository.clearPRForAthleteEvent).toHaveBeenCalled()
 		})
 
 		it('marks video as PR when new mark beats previous best', async () => {
 			const previousBest = buildMockVideo({
+				id: 'video-old',
 				sessionId: 'session-1',
 				teamId: 'team-1',
 				result: buildMarkResult({ value: 10.2 })
 			})
 			mockVideoRepository.find.mockResolvedValue([previousBest])
-			const newVideo = buildMockVideo({ isPR: true, result: buildMarkResult({ value: 10.5 }) })
+			mockVideoRepository.findOne.mockResolvedValue(
+				buildMockVideo({ isPR: true, result: buildMarkResult({ value: 10.5 }) })
+			)
+			const newVideo = buildMockVideo({
+				isPR: false,
+				result: buildMarkResult({ value: 10.5 })
+			})
 			mockVideoRepository.create.mockResolvedValue(newVideo)
 
 			const result = await videoService.createVideo({
@@ -112,6 +141,10 @@ describe('VideoService', () => {
 			})
 
 			expect(result.isPR).toBe(true)
+			expect(mockVideoRepository.update).toHaveBeenCalledWith({
+				filter: { id: expect.any(String), teamId: 'team-1' },
+				data: { isPR: true }
+			})
 		})
 
 		it('does not mark as PR when new mark is worse than previous best', async () => {
@@ -189,12 +222,13 @@ describe('VideoService', () => {
 
 		it('detects PR for vertical Mark when cleared height beats previous best', async () => {
 			const previousBest = buildMockVideo({
+				id: 'video-old',
 				sessionId: 'session-1',
 				teamId: 'team-1',
 				result: buildVerticalMarkResult({ value: 1.8, cleared: true })
 			})
 			mockVideoRepository.find.mockResolvedValue([previousBest])
-			const newVideo = buildMockVideo({ isPR: true })
+			const newVideo = buildMockVideo({ isPR: false })
 			mockVideoRepository.create.mockResolvedValue(newVideo)
 
 			await videoService.createVideo({
@@ -210,7 +244,11 @@ describe('VideoService', () => {
 			})
 
 			expect(mockVideoRepository.create).toHaveBeenCalledWith({
-				data: expect.objectContaining({ isPR: true })
+				data: expect.objectContaining({ isPR: false })
+			})
+			expect(mockVideoRepository.update).toHaveBeenCalledWith({
+				filter: { id: expect.any(String), teamId: 'team-1' },
+				data: { isPR: true }
 			})
 		})
 
@@ -238,6 +276,7 @@ describe('VideoService', () => {
 
 		it('still reads legacy VerticalHeights for PR detection', async () => {
 			const previousBest = buildMockVideo({
+				id: 'video-old',
 				sessionId: 'session-1',
 				teamId: 'team-1',
 				result: buildVerticalHeightsResult({
@@ -248,7 +287,7 @@ describe('VideoService', () => {
 				})
 			})
 			mockVideoRepository.find.mockResolvedValue([previousBest])
-			const newVideo = buildMockVideo({ isPR: true })
+			const newVideo = buildMockVideo({ isPR: false })
 			mockVideoRepository.create.mockResolvedValue(newVideo)
 
 			await videoService.createVideo({
@@ -263,8 +302,9 @@ describe('VideoService', () => {
 				}
 			})
 
-			expect(mockVideoRepository.create).toHaveBeenCalledWith({
-				data: expect.objectContaining({ isPR: true })
+			expect(mockVideoRepository.update).toHaveBeenCalledWith({
+				filter: { id: expect.any(String), teamId: 'team-1' },
+				data: { isPR: true }
 			})
 		})
 
@@ -303,9 +343,12 @@ describe('VideoService', () => {
 
 		it('clears previous PR flags when a new meet PR is set', async () => {
 			mockVideoRepository.find.mockResolvedValue([])
+			mockVideoRepository.findOne.mockResolvedValue(
+				buildMockVideo({ isPR: true, result: buildMarkResult({ value: 10.5 }) })
+			)
 			const newVideo = buildMockVideo({
 				id: 'new-video-id',
-				isPR: true,
+				isPR: false,
 				result: buildMarkResult({ value: 10.5 })
 			})
 			mockVideoRepository.create.mockResolvedValue(newVideo)
@@ -325,16 +368,14 @@ describe('VideoService', () => {
 			expect(mockVideoRepository.clearPRForAthleteEvent).toHaveBeenCalledWith({
 				athleteId: 'athlete-1',
 				event: TrackEvent.LongJump,
-				teamId: 'team-1',
-				excludeVideoId: undefined
+				teamId: 'team-1'
 			})
 			expect(
 				mockVideoPerformanceRepository.clearPRForAthleteEvent
 			).toHaveBeenCalledWith({
 				athleteId: 'athlete-1',
 				event: TrackEvent.LongJump,
-				teamId: 'team-1',
-				excludeVideoId: undefined
+				teamId: 'team-1'
 			})
 		})
 	})
@@ -555,6 +596,67 @@ describe('VideoService', () => {
 			expect(result.points).toHaveLength(0)
 			expect(result.stats.pr).toBeNull()
 			expect(result.stats.totalAttempts).toBe(0)
+		})
+
+		it('loads only performance videos by id for running events', async () => {
+			const meetSessionId = 'meet-session-1'
+			const videoId = 'running-video-1'
+			const meetDate = new Date('2024-03-01T12:00:00.000Z')
+
+			mockTrainingSessionRepository.find.mockResolvedValue([
+				buildMockTrainingSession({
+					id: meetSessionId,
+					teamId: 'team-1',
+					type: SessionType.Meet,
+					name: 'Sprint Meet',
+					date: meetDate
+				})
+			])
+			mockVideoRepository.find.mockResolvedValue([])
+			mockVideoPerformanceRepository.find.mockResolvedValue([
+				buildMockVideoPerformance({
+					videoId,
+					teamId: 'team-1',
+					athleteId: 'athlete-1',
+					event: TrackEvent.M100,
+					result: buildTimeResult({ value: 11.42 }),
+					createdAt: meetDate
+				})
+			])
+			mockVideoRepository.findByIds.mockResolvedValue([
+				buildMockVideo({
+					id: videoId,
+					sessionId: meetSessionId,
+					teamId: 'team-1',
+					athleteId: null,
+					event: TrackEvent.M100,
+					result: null,
+					createdAt: meetDate
+				})
+			])
+
+			const result = await videoService.getAthleteProgression({
+				athleteId: 'athlete-1',
+				event: TrackEvent.M100,
+				teamId: 'team-1'
+			})
+
+			expect(mockVideoRepository.findByIds).toHaveBeenCalledWith({
+				ids: [videoId],
+				teamId: 'team-1'
+			})
+			expect(mockVideoRepository.find).toHaveBeenCalledWith({
+				filter: {
+					athleteId: 'athlete-1',
+					event: TrackEvent.M100,
+					teamId: 'team-1'
+				},
+				includeCommentCounts: false
+			})
+			expect(result.points).toHaveLength(1)
+			expect(result.points[0]?.bestResult).toBe(11.42)
+			expect(result.stats.pr).toBe(11.42)
+			expect(result.stats.totalAttempts).toBe(1)
 		})
 	})
 

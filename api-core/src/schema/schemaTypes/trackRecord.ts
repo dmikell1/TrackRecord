@@ -114,6 +114,28 @@ export const TrackRecord = gql`
 	enum JoinInviteKind {
 		Athlete
 		Team
+		Recorder
+	}
+
+	enum RecorderInviteStatus {
+		Pending
+		Accepted
+		Expired
+		Cancelled
+	}
+
+	enum TeamRecorderStatus {
+		Pending
+		Active
+	}
+
+	type TeamRecorderEntry {
+		id: ID!
+		email: String!
+		displayName: String!
+		status: TeamRecorderStatus!
+		userId: ID
+		inviteId: ID
 	}
 
 	type JoinInfo {
@@ -124,6 +146,18 @@ export const TrackRecord = gql`
 		firstName: String
 		lastName: String
 		status: AthleteInviteStatus
+	}
+
+	type RecorderInvite {
+		id: ID!
+		teamId: ID!
+		email: String!
+		token: String!
+		status: RecorderInviteStatus!
+		expiresAt: DateTime!
+		acceptedByUserId: ID
+		createdAt: DateTime!
+		updatedAt: DateTime!
 	}
 
 	enum TrackRecordNotificationType {
@@ -322,6 +356,16 @@ export const TrackRecord = gql`
 		email: String!
 	}
 
+	input CreateRecorderInviteInput {
+		team: ID!
+		email: String!
+	}
+
+	type CreateRecorderInviteResult {
+		invite: RecorderInvite!
+		emailSent: Boolean!
+	}
+
 	input BulkAthleteRowInput {
 		firstName: String!
 		lastName: String!
@@ -430,6 +474,7 @@ export const TrackRecord = gql`
 		): AthleteProgression!
 		athleteInvite(token: String!): AthleteInvite
 		joinInfo(token: String!): JoinInfo
+		teamRecorders(team: ID!): [TeamRecorderEntry!]!
 	}
 
 	# ─── Mutations ────────────────────────────────────────────────────────────────
@@ -447,6 +492,12 @@ export const TrackRecord = gql`
 		sendAthleteInviteEmail(team: ID!, inviteId: ID!): Boolean!
 		resendAthleteInvite(team: ID!, athleteId: ID!): AthleteInvite!
 		acceptAthleteInvite(token: String!): Athlete!
+
+		createRecorderInvite(data: CreateRecorderInviteInput!): CreateRecorderInviteResult!
+		resendRecorderInvite(team: ID!, inviteId: ID!): RecorderInvite!
+		acceptRecorderInvite(token: String!): Boolean!
+		cancelRecorderInvite(id: ID!, team: ID!): Boolean!
+		revokeRecorderAccess(userId: ID!, team: ID!): Boolean!
 
 		createVideo(data: CreateVideoInput!): Video!
 		createRunningVideo(data: CreateRunningVideoInput!): Video!

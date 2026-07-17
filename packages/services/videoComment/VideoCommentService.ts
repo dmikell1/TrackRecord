@@ -8,6 +8,7 @@ import { VideoRepository } from '@packages/repositories/video/VideoRepository'
 import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
+import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import type { AthleteInterface } from '@packages/types/athlete'
@@ -28,6 +29,7 @@ export class VideoCommentService {
 		@inject(AthleteRepository) private athleteRepository: AthleteRepository,
 		@inject(TeamRepository) private teamRepository: TeamRepository,
 		@inject(TrackRecordNotificationRepository) private notificationRepository: TrackRecordNotificationRepository,
+		@inject(EntitlementService) private entitlementService: EntitlementService,
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
 
@@ -43,13 +45,18 @@ export class VideoCommentService {
 			throw new Error('Video not found or does not belong to this team')
 		}
 
+		const team = await this.teamRepository.findOne({ filter: { id: teamId } })
+		if (!team) {
+			throw new Error('Team not found')
+		}
+		await this.entitlementService.assertCanWrite({ companyId: team.companyId })
+
 		const comment = await this.videoCommentRepository.create({ data })
 
 		const athletes = await this.resolveVideoAthletes({
 			video,
 			teamId: video.teamId
 		})
-		const team = await this.teamRepository.findOne({ filter: { id: video.teamId } })
 
 		await this.notifyCommentRecipients({
 			video,

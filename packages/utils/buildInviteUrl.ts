@@ -4,3 +4,12 @@ export const buildAthleteInviteUrl = ({ token }: { token: string }): string => {
 	const baseUrl = env.TRACKRECORD_APP_URL.replace(/\/$/, '')
 	return `${baseUrl}/join/${token}`
 }
+
+export const buildRecorderInviteUrl = ({
+	token
+}: {
+	token: string
+}): string => {
+	const baseUrl = env.TRACKRECORD_APP_URL.replace(/\/$/, '')
+	return `${baseUrl}/join/${token}`
+}

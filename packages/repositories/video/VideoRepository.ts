@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, type SQL } from 'drizzle-orm'
+import { and, count, eq, inArray, ne, type SQL } from 'drizzle-orm'
 import { inject, injectable, singleton } from 'tsyringe'
 
 import { videos } from '@packages/database/schema'
@@ -85,13 +85,18 @@ export class VideoRepository extends BaseRepository<
 	public async find({
 		filter,
 		limit,
-		offset
+		offset,
+		includeCommentCounts = true
 	}: {
 		filter: VideoFilter
 		limit?: number
 		offset?: number
+		includeCommentCounts?: boolean
 	}): Promise<VideoInterface[]> {
 		const videoList = await super.find({ filter, limit, offset })
+		if (!includeCommentCounts) {
+			return videoList
+		}
 		return this.withCommentCounts({ videos: videoList })
 	}
 
@@ -227,6 +232,41 @@ export class VideoRepository extends BaseRepository<
 		}
 	}
 
+	public async countBySessionIds({
+		sessionIds,
+		teamId
+	}: {
+		sessionIds: string[]
+		teamId: string
+	}): Promise<Map<string, number>> {
+		if (sessionIds.length === 0) {
+			return new Map()
+		}
+
+		try {
+			const db = getDb()
+			const rows = await db
+				.select({
+					sessionId: videos.sessionId,
+					videoCount: count()
+				})
+				.from(videos)
+				.where(
+					and(inArray(videos.sessionId, sessionIds), eq(videos.teamId, teamId))
+				)
+				.groupBy(videos.sessionId)
+
+			const counts = new Map<string, number>()
+			for (const row of rows) {
+				counts.set(row.sessionId, Number(row.videoCount))
+			}
+			return counts
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
+	}
+
 	public async findByIds({
 		ids,
 		teamId
@@ -245,7 +285,9 @@ export class VideoRepository extends BaseRepository<
 				.from(videos)
 				.where(and(inArray(videos.id, ids), eq(videos.teamId, teamId)))
 
-			return rows.map(row => this.mapRow(row))
+			return this.withCommentCounts({
+				videos: rows.map(row => this.mapRow(row))
+			})
 		} catch (error) {
 			this.reportingService.reportError({ error: error as Error })
 			throw error

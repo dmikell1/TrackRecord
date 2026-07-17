@@ -7,6 +7,7 @@ import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
 import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
 import { AthleteInviteService } from '@packages/services/athleteInvite/AthleteInviteService'
+import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import ReportErrors, {
 	NoTrace
 } from '@packages/services/logging/decorators/reportErrors'
@@ -34,6 +35,8 @@ export class AthleteService {
 		private videoPerformanceRepository: VideoPerformanceRepository,
 		@inject(AthleteInviteService)
 		private athleteInviteService: AthleteInviteService,
+		@inject(EntitlementService)
+		private entitlementService: EntitlementService,
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
 
@@ -45,6 +48,10 @@ export class AthleteService {
 			Partial<Pick<AthleteInterface, 'userId' | 'phone'>>
 		sendInvite?: boolean
 	}): Promise<CreateAthleteResult> {
+		await this.entitlementService.assertCanAddAthletes({
+			companyId: data.companyId,
+			additionalCount: 1
+		})
 		const athlete = await this.athleteRepository.create({ data })
 
 		if (!sendInvite) {
@@ -169,6 +176,14 @@ export class AthleteService {
 					color: pickRandomAthleteColor(),
 					...(row.phone.length > 0 && { phone: row.phone })
 				}
+			})
+		}
+
+		// Gate on creatable rows only so skipped/invalid entries don't consume seats.
+		if (rowsToCreate.length > 0) {
+			await this.entitlementService.assertCanAddAthletes({
+				companyId,
+				additionalCount: rowsToCreate.length
 			})
 		}
 

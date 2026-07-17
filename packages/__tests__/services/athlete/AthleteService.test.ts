@@ -8,6 +8,7 @@ import { VideoPerformanceRepository } from '@packages/repositories/videoPerforma
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
 import { AthleteService } from '@packages/services/athlete/AthleteService'
 import { AthleteInviteService } from '@packages/services/athleteInvite/AthleteInviteService'
+import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { buildMockAthlete } from '@builders/athlete'
 import { buildMockTeam } from '@builders/team'
@@ -19,6 +20,7 @@ describe('AthleteService', () => {
 	let mockVideoRepository: jest.Mocked<VideoRepository>
 	let mockVideoPerformanceRepository: jest.Mocked<VideoPerformanceRepository>
 	let mockAthleteInviteService: jest.Mocked<AthleteInviteService>
+	let mockEntitlementService: jest.Mocked<EntitlementService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
 	beforeEach(() => {
@@ -27,9 +29,12 @@ describe('AthleteService', () => {
 		mockVideoRepository = mock<VideoRepository>()
 		mockVideoPerformanceRepository = mock<VideoPerformanceRepository>()
 		mockAthleteInviteService = mock<AthleteInviteService>()
+		mockEntitlementService = mock<EntitlementService>()
 		mockReportingService = mock<ReportingService>()
 
 		mockReportingService.withTrace.mockImplementation(({ fn }) => fn())
+		mockEntitlementService.assertCanAddAthletes.mockResolvedValue(undefined)
+		mockEntitlementService.assertCanWrite.mockResolvedValue(undefined)
 
 		container.registerInstance(AthleteRepository, mockAthleteRepository)
 		container.registerInstance(TeamRepository, mockTeamRepository)
@@ -39,6 +44,7 @@ describe('AthleteService', () => {
 			mockVideoPerformanceRepository
 		)
 		container.registerInstance(AthleteInviteService, mockAthleteInviteService)
+		container.registerInstance(EntitlementService, mockEntitlementService)
 		container.registerInstance(ReportingService, mockReportingService)
 
 		athleteService = container.resolve(AthleteService)
@@ -132,7 +138,47 @@ describe('AthleteService', () => {
 					})
 				]
 			})
+			expect(mockEntitlementService.assertCanAddAthletes).toHaveBeenCalledWith({
+				companyId: team.companyId,
+				additionalCount: 1
+			})
 			expect(mockAthleteInviteService.createAthleteInvite).not.toHaveBeenCalled()
+		})
+
+		it('should block bulk create when creatable rows exceed plan seats', async () => {
+			const team = buildMockTeam({ id: 'team-1', companyId: 'company-1' })
+			mockTeamRepository.findOne.mockResolvedValue(team)
+			mockAthleteRepository.findByEmailsInTeam.mockResolvedValue([])
+			mockEntitlementService.assertCanAddAthletes.mockRejectedValue(
+				new Error(
+					'Athlete limit reached for your plan. Upgrade to add more athletes.'
+				)
+			)
+
+			await expect(
+				athleteService.bulkCreateAthletes({
+					teamId: team.id,
+					companyId: team.companyId,
+					athletes: [
+						{
+							firstName: 'One',
+							lastName: 'Athlete',
+							email: 'one@example.com'
+						},
+						{
+							firstName: 'Two',
+							lastName: 'Athlete',
+							email: 'two@example.com'
+						}
+					]
+				})
+			).rejects.toThrow('Athlete limit reached for your plan')
+
+			expect(mockEntitlementService.assertCanAddAthletes).toHaveBeenCalledWith({
+				companyId: team.companyId,
+				additionalCount: 2
+			})
+			expect(mockAthleteRepository.createMany).not.toHaveBeenCalled()
 		})
 
 		it('should report invite email failures without failing import', async () => {

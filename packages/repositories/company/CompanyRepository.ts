@@ -1,4 +1,4 @@
-import { eq, type SQL } from 'drizzle-orm'
+import { and, eq, type SQL } from 'drizzle-orm'
 import { inject, injectable, singleton } from 'tsyringe'
 
 import { getDb } from '@packages/database/createPostgresConnection'
@@ -10,7 +10,12 @@ import {
 	userRoles,
 	users
 } from '@packages/database/schema'
-import { UserRoles, UserStatus } from '@packages/enums'
+import {
+	SubscriptionPlan,
+	SubscriptionStatus,
+	UserRoles,
+	UserStatus
+} from '@packages/enums'
 import { BaseRepository } from '@packages/repositories/BaseRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
@@ -44,6 +49,13 @@ export class CompanyRepository extends BaseRepository<
 			ownerId: row.ownerId,
 			name: row.name,
 			settings: row.settings ?? {},
+			subscriptionPlan: (row.subscriptionPlan as CompanyInterface['subscriptionPlan']) ?? null,
+			subscriptionStatus:
+				(row.subscriptionStatus as CompanyInterface['subscriptionStatus']) ??
+				SubscriptionStatus.Expired,
+			trialEndsAt: row.trialEndsAt ?? null,
+			subscriptionExpiresAt: row.subscriptionExpiresAt ?? null,
+			revenueCatAppUserId: row.revenueCatAppUserId ?? null,
 			createdAt: row.createdAt,
 			updatedAt: row.updatedAt
 		}
@@ -84,7 +96,10 @@ export class CompanyRepository extends BaseRepository<
 					.values({
 						ownerId,
 						name,
-						settings: settings ?? {}
+						settings: settings ?? {},
+						// No app-owned trial — write access starts after StoreKit intro trial.
+						subscriptionStatus: SubscriptionStatus.Expired,
+						trialEndsAt: null
 					})
 					.returning()
 
@@ -218,8 +233,93 @@ export class CompanyRepository extends BaseRepository<
 		data
 	}: {
 		filter: CompanyFilter
-		data: Partial<Pick<CompanyInterface, 'name' | 'settings'>>
+		data: Partial<
+			Pick<
+				CompanyInterface,
+				| 'name'
+				| 'settings'
+				| 'subscriptionPlan'
+				| 'subscriptionStatus'
+				| 'trialEndsAt'
+				| 'subscriptionExpiresAt'
+				| 'revenueCatAppUserId'
+			>
+		>
 	}): Promise<CompanyInterface | null> {
 		return super.update({ filter, data })
+	}
+
+	public async findByRevenueCatAppUserId({
+		revenueCatAppUserId
+	}: {
+		revenueCatAppUserId: string
+	}): Promise<CompanyInterface | null> {
+		const db = getDb()
+		const rows = await db
+			.select()
+			.from(companies)
+			.where(eq(companies.revenueCatAppUserId, revenueCatAppUserId))
+			.limit(1)
+		const row = rows[0]
+		return row ? this.mapRow(row) : null
+	}
+
+	public async updateSubscription({
+		companyId,
+		subscriptionPlan,
+		subscriptionStatus,
+		trialEndsAt,
+		subscriptionExpiresAt,
+		revenueCatAppUserId
+	}: {
+		companyId: string
+		subscriptionPlan?: SubscriptionPlan | null
+		subscriptionStatus: SubscriptionStatus
+		trialEndsAt?: Date | null
+		subscriptionExpiresAt?: Date | null
+		revenueCatAppUserId?: string | null
+	}): Promise<CompanyInterface | null> {
+		return this.update({
+			filter: { id: companyId },
+			data: {
+				subscriptionStatus,
+				...(subscriptionPlan !== undefined && { subscriptionPlan }),
+				...(trialEndsAt !== undefined && { trialEndsAt }),
+				...(subscriptionExpiresAt !== undefined && { subscriptionExpiresAt }),
+				...(revenueCatAppUserId !== undefined && { revenueCatAppUserId })
+			}
+		})
+	}
+
+	public async addCompanyUser({
+		companyId,
+		userId
+	}: {
+		companyId: string
+		userId: string
+	}): Promise<void> {
+		const db = getDb()
+		await db
+			.insert(companyUsers)
+			.values({ companyId, userId })
+			.onConflictDoNothing()
+	}
+
+	public async removeCompanyUser({
+		companyId,
+		userId
+	}: {
+		companyId: string
+		userId: string
+	}): Promise<void> {
+		const db = getDb()
+		await db
+			.delete(companyUsers)
+			.where(
+				and(
+					eq(companyUsers.companyId, companyId),
+					eq(companyUsers.userId, userId)
+				)
+			)
 	}
 }

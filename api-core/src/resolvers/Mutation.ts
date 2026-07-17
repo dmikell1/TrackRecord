@@ -9,6 +9,11 @@ import { createAthleteInvite } from '@api-core/src/resolvers/mutations/athlete/c
 import { acceptAthleteInvite } from '@api-core/src/resolvers/mutations/athlete/acceptAthleteInvite'
 import { sendAthleteInviteEmail } from '@api-core/src/resolvers/mutations/athlete/sendAthleteInviteEmail'
 import { resendAthleteInvite } from '@api-core/src/resolvers/mutations/athlete/resendAthleteInvite'
+import { acceptRecorderInvite } from '@api-core/src/resolvers/mutations/recorder/acceptRecorderInvite'
+import { cancelRecorderInvite } from '@api-core/src/resolvers/mutations/recorder/cancelRecorderInvite'
+import { createRecorderInvite } from '@api-core/src/resolvers/mutations/recorder/createRecorderInvite'
+import { resendRecorderInvite } from '@api-core/src/resolvers/mutations/recorder/resendRecorderInvite'
+import { revokeRecorderAccess } from '@api-core/src/resolvers/mutations/recorder/revokeRecorderAccess'
 import { createVideo } from '@api-core/src/resolvers/mutations/video/createVideo'
 import { createRunningVideo } from '@api-core/src/resolvers/mutations/video/createRunningVideo'
 import { updateVideo } from '@api-core/src/resolvers/mutations/video/updateVideo'
@@ -21,8 +26,12 @@ import { markAllNotificationsRead } from '@api-core/src/resolvers/mutations/noti
 import { updateTeam } from '@api-core/src/resolvers/mutations/team/updateTeam'
 import { updateTeamSettings } from '@api-core/src/resolvers/mutations/team/updateTeamSettings'
 import { teamInviteLink } from '@api-core/src/resolvers/mutations/team/teamInviteLink'
+import { syncCompanySubscription } from '@api-core/src/resolvers/mutations/billing/syncCompanySubscription'
+import { deleteMyAccount } from '@api-core/src/resolvers/mutations/user/deleteMyAccount'
 
 const Mutation = {
+	syncCompanySubscription,
+	deleteMyAccount,
 	createTrainingSession,
 	updateTrainingSession,
 	deleteTrainingSession,
@@ -34,6 +43,11 @@ const Mutation = {
 	acceptAthleteInvite,
 	sendAthleteInviteEmail,
 	resendAthleteInvite,
+	createRecorderInvite,
+	resendRecorderInvite,
+	acceptRecorderInvite,
+	cancelRecorderInvite,
+	revokeRecorderAccess,
 	createVideo,
 	createRunningVideo,
 	updateVideo,

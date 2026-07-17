@@ -505,8 +505,9 @@ export class AthleteInviteService {
 			await this.queueAthleteInviteEmail({ invite })
 			return true
 		} catch (error) {
-			this.reportingService.error('Failed to send athlete invite email', {
-				error,
+			this.reportingService.error({
+				message: 'Failed to send athlete invite email',
+				error: error as Error,
 				inviteId: invite.id,
 				email: invite.email,
 				teamId: invite.teamId

@@ -21,9 +21,9 @@ require('reflect-metadata')
 
 export default async function globalTeardown(): Promise<void> {
 	// eslint-disable-next-line @typescript-eslint/no-var-requires
-	const { disconnectPostgresDatabase } = require(
+	const { closePostgresConnection } = require(
 		'@packages/database/createPostgresConnection'
 	) as typeof import('@packages/database/createPostgresConnection')
 
-	await disconnectPostgresDatabase()
+	await closePostgresConnection()
 }

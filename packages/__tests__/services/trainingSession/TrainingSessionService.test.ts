@@ -3,14 +3,18 @@ import { container } from 'tsyringe'
 
 import { SessionType } from '@packages/enums/trackRecord'
 import { TrainingSessionRepository } from '@packages/repositories/trainingSession/TrainingSessionRepository'
+import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { TrainingSessionService } from '@packages/services/trainingSession/TrainingSessionService'
+import { VideoService } from '@packages/services/video/VideoService'
 
 import { buildMockTrainingSession } from '@builders/trainingSession'
 
 describe('TrainingSessionService', () => {
 	let service: TrainingSessionService
 	let mockRepository: jest.Mocked<TrainingSessionRepository>
+	let mockVideoService: jest.Mocked<VideoService>
+	let mockEntitlementService: jest.Mocked<EntitlementService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
 	const teamId = 'team-1'
@@ -18,10 +22,15 @@ describe('TrainingSessionService', () => {
 
 	beforeEach(() => {
 		mockRepository = mock<TrainingSessionRepository>()
+		mockVideoService = mock<VideoService>()
+		mockEntitlementService = mock<EntitlementService>()
 		mockReportingService = mock<ReportingService>()
 		mockReportingService.withTrace.mockImplementation(({ fn }) => fn())
+		mockEntitlementService.assertCanWrite.mockResolvedValue(undefined)
 
 		container.registerInstance(TrainingSessionRepository, mockRepository)
+		container.registerInstance(VideoService, mockVideoService)
+		container.registerInstance(EntitlementService, mockEntitlementService)
 		container.registerInstance(ReportingService, mockReportingService)
 
 		service = container.resolve(TrainingSessionService)

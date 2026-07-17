@@ -33,7 +33,7 @@ require('reflect-metadata')
 export default async function globalSetup(): Promise<void> {
 	// Deferred requires — path aliases are now active
 	// eslint-disable-next-line @typescript-eslint/no-var-requires
-	const { connectToPostgresDatabase, disconnectPostgresDatabase } = require(
+	const { closePostgresConnection, connectToPostgresDatabase } = require(
 		'@packages/database/createPostgresConnection'
 	) as typeof import('@packages/database/createPostgresConnection')
 
@@ -45,10 +45,9 @@ export default async function globalSetup(): Promise<void> {
 	console.log('🧪 Initialising global test setup...')
 	try {
 		await connectToPostgresDatabase({
-			connectionString: env.TEST_DATABASE_URL,
-			syncSchema: true
+			dbString: env.TEST_DATABASE_URL
 		})
-		await disconnectPostgresDatabase()
+		await closePostgresConnection()
 		console.log('🧪 Global test setup complete — schema synced.')
 	} catch (err) {
 		console.error('🧪 Global test setup failed:', err)
