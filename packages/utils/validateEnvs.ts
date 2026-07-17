@@ -76,19 +76,6 @@ const envSchema = z
 			.transform((val) => parseInt(val, 10))
 			.pipe(z.number().int().positive())
 	})
-	.superRefine((data, ctx) => {
-		if (
-			data.ENVIRONMENT_NAME === 'production' &&
-			data.REVENUECAT_WEBHOOK_SECRET.trim().length === 0
-		) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ['REVENUECAT_WEBHOOK_SECRET'],
-				message:
-					'Required when ENVIRONMENT_NAME is production (RevenueCat webhook Authorization bearer)'
-			})
-		}
-	})
 
 const parseEnv = (): z.infer<typeof envSchema> => {
 	try {
@@ -107,3 +94,16 @@ const parseEnv = (): z.infer<typeof envSchema> => {
 }
 
 export const env = parseEnv()
+
+// Do not crash the process for a missing webhook secret — that blocked Control Plane
+// rollouts and left the previous revision (without Company.subscription) serving traffic.
+// The webhook handler already rejects unsigned requests when the secret is empty.
+if (
+	env.ENVIRONMENT_NAME === 'production' &&
+	env.REVENUECAT_WEBHOOK_SECRET.trim().length === 0
+) {
+	// eslint-disable-next-line no-console -- boot-time ops warning before logger is ready
+	console.warn(
+		'[env] REVENUECAT_WEBHOOK_SECRET is empty in production. Set it in Control Plane and match RevenueCat webhook Authorization: Bearer <secret>.'
+	)
+}
