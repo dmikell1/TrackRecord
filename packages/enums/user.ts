@@ -11,5 +11,6 @@ export enum UserRoles {
 	Manager = 'Manager',
 	InternalEmployee = 'InternalEmployee',
 	Owner = 'Owner',
-	Beta = 'Beta'
+	Beta = 'Beta',
+	Recorder = 'Recorder'
 }

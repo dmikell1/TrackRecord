@@ -55,3 +55,12 @@ export const buildVerticalHeightsResult = ({
 })
 
 export const buildFoulResult = (): VideoResult => ({ type: 'Foul' })
+
+export const buildTimeResult = ({
+	value
+}: {
+	value: number
+}): VideoResult => ({
+	type: 'Time',
+	value
+})

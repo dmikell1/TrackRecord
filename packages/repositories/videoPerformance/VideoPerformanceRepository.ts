@@ -80,14 +80,23 @@ export class VideoPerformanceRepository extends BaseRepository<
 			return []
 		}
 
-		const rows = await this.find({
-			filter: {
-				teamId
-			}
-		})
+		try {
+			const db = getDb()
+			const rows = await db
+				.select()
+				.from(videoPerformances)
+				.where(
+					and(
+						inArray(videoPerformances.videoId, videoIds),
+						eq(videoPerformances.teamId, teamId)
+					)
+				)
 
-		const videoIdSet = new Set(videoIds)
-		return rows.filter(row => videoIdSet.has(row.videoId))
+			return rows.map(row => this.mapRow(row))
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
 	}
 
 	public async findVideoIdsByAthlete({

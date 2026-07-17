@@ -17,10 +17,13 @@ export const permissions = {
 		notifications: authorizationRules.withTeamAccess,
 		athleteProgression: authorizationRules.withTeamAccess,
 		athleteInvite: authorizationRules.withPublicAccess,
-		joinInfo: authorizationRules.withPublicAccess
+		joinInfo: authorizationRules.withPublicAccess,
+		teamRecorders: authorizationRules.withCoachAccess
 	},
 	Mutation: {
 		root: authorizationRules.withPublicAccess,
+		syncCompanySubscription: authorizationRules.isClerkOrAppAuthenticated,
+		deleteMyAccount: authorizationRules.isClerkOrAppAuthenticated,
 		// Training Sessions (coach-only)
 		createTrainingSession: authorizationRules.withCoachAccess,
 		updateTrainingSession: authorizationRules.withCoachAccess,
@@ -34,6 +37,11 @@ export const permissions = {
 		sendAthleteInviteEmail: authorizationRules.withCoachAccess,
 		resendAthleteInvite: authorizationRules.withCoachAccess,
 		acceptAthleteInvite: authorizationRules.isClerkOrAppAuthenticated,
+		createRecorderInvite: authorizationRules.withCoachAccess,
+		resendRecorderInvite: authorizationRules.withCoachAccess,
+		acceptRecorderInvite: authorizationRules.isClerkOrAppAuthenticated,
+		cancelRecorderInvite: authorizationRules.withCoachAccess,
+		revokeRecorderAccess: authorizationRules.withCoachAccess,
 		// Videos
 		createVideo: authorizationRules.withTeamAccess,
 		createRunningVideo: authorizationRules.withTeamAccess,

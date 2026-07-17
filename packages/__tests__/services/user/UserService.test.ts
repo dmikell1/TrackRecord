@@ -294,6 +294,32 @@ describe('UserService', () => {
 	})
 
 	// ------------------------------------------------------------------
+	describe('deleteMyAccount', () => {
+		it('deletes account data when user has no clerk id', async () => {
+			const mockUser = buildMockUser({ id: 'user-123', clerkId: null })
+			mockUserRepository.findOneOrFail.mockResolvedValue(mockUser)
+			mockUserRepository.deleteAccountData.mockResolvedValue(true)
+
+			const result = await userService.deleteMyAccount({ userId: 'user-123' })
+
+			expect(result).toBe(true)
+			expect(mockUserRepository.deleteAccountData).toHaveBeenCalledWith({
+				userId: 'user-123'
+			})
+		})
+
+		it('throws when account data delete fails', async () => {
+			const mockUser = buildMockUser({ id: 'user-123', clerkId: null })
+			mockUserRepository.findOneOrFail.mockResolvedValue(mockUser)
+			mockUserRepository.deleteAccountData.mockResolvedValue(false)
+
+			await expect(
+				userService.deleteMyAccount({ userId: 'user-123' })
+			).rejects.toThrow('Failed to delete account data')
+		})
+	})
+
+	// ------------------------------------------------------------------
 	describe('countUsers', () => {
 		it('returns the count from repository', async () => {
 			mockUserRepository.count.mockResolvedValue(7)

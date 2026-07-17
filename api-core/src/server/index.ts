@@ -32,6 +32,7 @@ import { corsOptions } from '@packages/middlewares/corsConfig'
 import { setUserIdFromToken } from '@packages/middlewares/setUserIdFromToken'
 import { requestTracingMiddleware } from '@packages/utils/tracing'
 import { errorHandler } from '@packages/middlewares/errorHandler'
+import { revenueCatRouter } from '@api-core/src/controllers/billing/revenueCatWebhook'
 import { clerkRouter } from '@api-core/src/controllers/clerk'
 import healthRouter from '@api-core/src/controllers/health'
 import { presignRouter } from '@api-core/src/controllers/media/presignUpload'
@@ -123,6 +124,7 @@ export const startApolloServer = async (): Promise<void> => {
 	app.use(setUserIdFromToken)
 
 	app.use('/clerk', clerkRouter)
+	app.use('/billing/revenuecat', revenueCatRouter)
 	app.use('/', healthRouter)
 	app.use('/media/presign', presignRouter)
 	app.use('/media', deleteObjectRouter)

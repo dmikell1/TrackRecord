@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm'
 import {
 	boolean,
+	index,
 	integer,
 	jsonb,
 	pgTable,
@@ -35,6 +36,15 @@ export const companies = pgTable('companies', {
 	settings: jsonb('settings')
 		.notNull()
 		.$type<{ timezoneName?: string }>(),
+	subscriptionPlan: varchar('subscription_plan', { length: 50 }),
+	subscriptionStatus: varchar('subscription_status', { length: 50 })
+		.notNull()
+		.default('trial'),
+	trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+	subscriptionExpiresAt: timestamp('subscription_expires_at', {
+		withTimezone: true
+	}),
+	revenueCatAppUserId: varchar('revenue_cat_app_user_id', { length: 255 }),
 	...standardTimestamps
 })
 
@@ -131,50 +141,88 @@ export const athleteInvites = pgTable('athlete_invites', {
 	...standardTimestamps
 })
 
-export const trainingSessions = pgTable('training_sessions', {
+export const recorderInvites = pgTable('recorder_invites', {
 	id: uuid('id').defaultRandom().primaryKey(),
 	teamId: uuid('team_id')
 		.notNull()
 		.references(() => teams.id, { onDelete: 'cascade' }),
-	companyId: uuid('company_id')
-		.notNull()
-		.references(() => companies.id, { onDelete: 'cascade' }),
-	name: varchar('name', { length: 255 }).notNull(),
-	date: timestamp('date', { withTimezone: true }).notNull(),
-	type: varchar('type', { length: 50 }).notNull(),
-	createdByUserId: uuid('created_by_user_id')
-		.notNull()
-		.references(() => users.id),
+	email: varchar('email', { length: 255 }).notNull(),
+	token: varchar('token', { length: 255 }).notNull().unique(),
+	status: varchar('status', { length: 50 }).notNull().default('Pending'),
+	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+	acceptedByUserId: uuid('accepted_by_user_id').references(() => users.id, {
+		onDelete: 'set null'
+	}),
 	...standardTimestamps
 })
 
-export const videos = pgTable('videos', {
-	id: uuid('id').defaultRandom().primaryKey(),
-	sessionId: uuid('session_id')
-		.notNull()
-		.references(() => trainingSessions.id, { onDelete: 'cascade' }),
-	teamId: uuid('team_id')
-		.notNull()
-		.references(() => teams.id, { onDelete: 'cascade' }),
-	athleteId: uuid('athlete_id').references(() => athletes.id, {
-		onDelete: 'cascade'
-	}),
-	event: varchar('event', { length: 50 }),
-	result: jsonb('result').$type<{
-		type: 'Foul' | 'Mark' | 'VerticalHeights' | 'Time' | 'DNF' | 'DQ'
-		value?: number
-		cleared?: boolean
-		reason?: string
-		heights?: Array<{ height: number; cleared: boolean }>
-	} | null>(),
-	isPR: boolean('is_pr').notNull().default(false),
-	videoUrl: text('video_url').notNull(),
-	thumbUrl: text('thumb_url'),
-	orientation: varchar('orientation', { length: 20 }).notNull().default('portrait'),
-	durationMs: integer('duration_ms'),
-	recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
-	...standardTimestamps
-})
+export const trainingSessions = pgTable(
+	'training_sessions',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		teamId: uuid('team_id')
+			.notNull()
+			.references(() => teams.id, { onDelete: 'cascade' }),
+		companyId: uuid('company_id')
+			.notNull()
+			.references(() => companies.id, { onDelete: 'cascade' }),
+		name: varchar('name', { length: 255 }).notNull(),
+		date: timestamp('date', { withTimezone: true }).notNull(),
+		type: varchar('type', { length: 50 }).notNull(),
+		createdByUserId: uuid('created_by_user_id')
+			.notNull()
+			.references(() => users.id),
+		...standardTimestamps
+	},
+	table => ({
+		teamTypeIdx: index('training_sessions_team_type_idx').on(
+			table.teamId,
+			table.type
+		)
+	})
+)
+
+export const videos = pgTable(
+	'videos',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		sessionId: uuid('session_id')
+			.notNull()
+			.references(() => trainingSessions.id, { onDelete: 'cascade' }),
+		teamId: uuid('team_id')
+			.notNull()
+			.references(() => teams.id, { onDelete: 'cascade' }),
+		athleteId: uuid('athlete_id').references(() => athletes.id, {
+			onDelete: 'cascade'
+		}),
+		event: varchar('event', { length: 50 }),
+		result: jsonb('result').$type<{
+			type: 'Foul' | 'Mark' | 'VerticalHeights' | 'Time' | 'DNF' | 'DQ'
+			value?: number
+			cleared?: boolean
+			reason?: string
+			heights?: Array<{ height: number; cleared: boolean }>
+		} | null>(),
+		isPR: boolean('is_pr').notNull().default(false),
+		videoUrl: text('video_url').notNull(),
+		thumbUrl: text('thumb_url'),
+		orientation: varchar('orientation', { length: 20 })
+			.notNull()
+			.default('portrait'),
+		durationMs: integer('duration_ms'),
+		recordedAt: timestamp('recorded_at', { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		...standardTimestamps
+	},
+	table => ({
+		teamAthleteEventIdx: index('videos_team_athlete_event_idx').on(
+			table.teamId,
+			table.athleteId,
+			table.event
+		)
+	})
+)
 
 export const videoPerformances = pgTable(
 	'video_performances',
@@ -204,6 +252,11 @@ export const videoPerformances = pgTable(
 		videoAthleteUnique: uniqueIndex('video_performances_video_athlete_idx').on(
 			table.videoId,
 			table.athleteId
+		),
+		teamAthleteEventIdx: index('video_performances_team_athlete_event_idx').on(
+			table.teamId,
+			table.athleteId,
+			table.event
 		)
 	})
 )
@@ -249,6 +302,14 @@ export const athletesRelations = relations(athletes, ({ one, many }) => ({
 export const athleteInvitesRelations = relations(athleteInvites, ({ one }) => ({
 	team: one(teams, { fields: [athleteInvites.teamId], references: [teams.id] }),
 	acceptedByUser: one(users, { fields: [athleteInvites.acceptedByUserId], references: [users.id] })
+}))
+
+export const recorderInvitesRelations = relations(recorderInvites, ({ one }) => ({
+	team: one(teams, { fields: [recorderInvites.teamId], references: [teams.id] }),
+	acceptedByUser: one(users, {
+		fields: [recorderInvites.acceptedByUserId],
+		references: [users.id]
+	})
 }))
 
 export const trainingSessionsRelations = relations(trainingSessions, ({ one, many }) => ({
@@ -318,6 +379,7 @@ export const schema = {
 	userRoles,
 	athletes,
 	athleteInvites,
+	recorderInvites,
 	trainingSessions,
 	videos,
 	videoPerformances,
@@ -328,6 +390,7 @@ export const schema = {
 	teamsRelations,
 	athletesRelations,
 	athleteInvitesRelations,
+	recorderInvitesRelations,
 	trainingSessionsRelations,
 	videosRelations,
 	videoPerformancesRelations,

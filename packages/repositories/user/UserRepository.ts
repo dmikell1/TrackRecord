@@ -1,4 +1,4 @@
-import { eq, type SQL } from 'drizzle-orm'
+import { eq, inArray, type SQL } from 'drizzle-orm'
 import { inject, injectable, singleton } from 'tsyringe'
 
 import { getDb } from '@packages/database/createPostgresConnection'
@@ -7,16 +7,39 @@ import {
 	companyUsers,
 	teams,
 	teamUsers,
+	trainingSessions,
 	userRoles,
 	users
 } from '@packages/database/schema'
+import {
+	SubscriptionPlan,
+	SubscriptionStatus,
+	UserRoles as UserRolesEnum
+} from '@packages/enums'
 import { BaseRepository } from '@packages/repositories/BaseRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
-import { UserRoles as UserRolesEnum } from '@packages/enums'
 import type { CompanyInterface } from '@packages/types/company'
 import type { TeamInterface } from '@packages/types/team'
 import type { UserInterface } from '@packages/types/user'
+
+type CompanyRow = typeof companies.$inferSelect
+
+const mapCompanyRow = ({ row }: { row: CompanyRow }): CompanyInterface => ({
+	id: row.id,
+	ownerId: row.ownerId,
+	name: row.name,
+	settings: row.settings ?? {},
+	subscriptionPlan: (row.subscriptionPlan as SubscriptionPlan | null) ?? null,
+	subscriptionStatus:
+		(row.subscriptionStatus as SubscriptionStatus) ??
+			SubscriptionStatus.Expired,
+	trialEndsAt: row.trialEndsAt ?? null,
+	subscriptionExpiresAt: row.subscriptionExpiresAt ?? null,
+	revenueCatAppUserId: row.revenueCatAppUserId ?? null,
+	createdAt: row.createdAt,
+	updatedAt: row.updatedAt
+})
 
 export type UserFilter = {
 	id?: string
@@ -89,14 +112,7 @@ export class UserRepository extends BaseRepository<
 			.innerJoin(companies, eq(companyUsers.companyId, companies.id))
 			.where(eq(companyUsers.userId, userId))
 
-		return rows.map((r) => ({
-			id: r.company.id,
-			ownerId: r.company.ownerId,
-			name: r.company.name,
-			settings: r.company.settings,
-			createdAt: r.company.createdAt,
-			updatedAt: r.company.updatedAt
-		}))
+		return rows.map((r) => mapCompanyRow({ row: r.company }))
 	}
 
 	private async loadTeamsForUser({
@@ -137,14 +153,7 @@ export class UserRepository extends BaseRepository<
 		return rows.map((r) => ({
 			role: r.userRole.role as UserRolesEnum,
 			companyId: r.userRole.companyId,
-			company: {
-				id: r.company.id,
-				ownerId: r.company.ownerId,
-				name: r.company.name,
-				settings: r.company.settings,
-				createdAt: r.company.createdAt,
-				updatedAt: r.company.updatedAt
-			}
+			company: mapCompanyRow({ row: r.company })
 		}))
 	}
 
@@ -336,5 +345,114 @@ export class UserRepository extends BaseRepository<
 		clerkId: string
 	}): Promise<UserInterface | null> {
 		return this.findOne({ filter: { clerkId } })
+	}
+
+	public async findByIds({
+		ids
+	}: {
+		ids: string[]
+	}): Promise<UserInterface[]> {
+		if (ids.length === 0) {
+			return []
+		}
+		try {
+			const db = getDb()
+			const rows = await db
+				.select()
+				.from(users)
+				.where(inArray(users.id, ids))
+			return rows.map((row) => this.mapRow(row))
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
+	}
+
+	/**
+	 * Deletes the user and owned company graph. Reassigns FK blockers on
+	 * teams / training sessions that other orgs still need.
+	 */
+	public async deleteAccountData({
+		userId
+	}: {
+		userId: string
+	}): Promise<boolean> {
+		try {
+			const db = getDb()
+			return await db.transaction(async (tx) => {
+				const ownedCompanies = await tx
+					.select({ id: companies.id })
+					.from(companies)
+					.where(eq(companies.ownerId, userId))
+
+				for (const company of ownedCompanies) {
+					await tx.delete(teams).where(eq(teams.companyId, company.id))
+					await tx.delete(companies).where(eq(companies.id, company.id))
+				}
+
+				const remainingOwnedTeams = await tx
+					.select({
+						id: teams.id,
+						companyId: teams.companyId
+					})
+					.from(teams)
+					.where(eq(teams.ownerId, userId))
+
+				for (const team of remainingOwnedTeams) {
+					const companyRows = await tx
+						.select({ ownerId: companies.ownerId })
+						.from(companies)
+						.where(eq(companies.id, team.companyId))
+						.limit(1)
+					const companyOwnerId = companyRows[0]?.ownerId
+					if (
+						companyOwnerId !== undefined &&
+						companyOwnerId !== userId
+					) {
+						await tx
+							.update(teams)
+							.set({ ownerId: companyOwnerId })
+							.where(eq(teams.id, team.id))
+					}
+				}
+
+				const createdSessions = await tx
+					.select({
+						id: trainingSessions.id,
+						teamId: trainingSessions.teamId
+					})
+					.from(trainingSessions)
+					.where(eq(trainingSessions.createdByUserId, userId))
+
+				for (const session of createdSessions) {
+					const teamRows = await tx
+						.select({ ownerId: teams.ownerId })
+						.from(teams)
+						.where(eq(teams.id, session.teamId))
+						.limit(1)
+					const teamOwnerId = teamRows[0]?.ownerId
+					if (teamOwnerId !== undefined && teamOwnerId !== userId) {
+						await tx
+							.update(trainingSessions)
+							.set({ createdByUserId: teamOwnerId })
+							.where(eq(trainingSessions.id, session.id))
+					} else {
+						await tx
+							.delete(trainingSessions)
+							.where(eq(trainingSessions.id, session.id))
+					}
+				}
+
+				const removed = await tx
+					.delete(users)
+					.where(eq(users.id, userId))
+					.returning({ id: users.id })
+
+				return removed.length > 0
+			})
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
 	}
 }

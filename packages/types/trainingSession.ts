@@ -11,4 +11,6 @@ export interface TrainingSessionInterface {
 	createdAt: Date
 	updatedAt: Date
 	videos?: VideoInterface[]
+	/** Prefetched list count — avoids N+1 videoCount field resolvers */
+	videoCount?: number
 }

@@ -10,6 +10,7 @@ import { video } from '@api-core/src/resolvers/queries/video/video'
 import { notifications } from '@api-core/src/resolvers/queries/notification/notifications'
 import { athleteInvite } from '@api-core/src/resolvers/queries/athleteInvite/athleteInvite'
 import { joinInfo } from '@api-core/src/resolvers/queries/join/joinInfo'
+import { teamRecorders } from '@api-core/src/resolvers/queries/recorder/teamRecorders'
 
 const Query = {
 	me,
@@ -23,7 +24,8 @@ const Query = {
 	video,
 	notifications,
 	athleteInvite,
-	joinInfo
+	joinInfo,
+	teamRecorders
 }
 
 export { Query }

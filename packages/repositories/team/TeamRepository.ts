@@ -114,6 +114,19 @@ export class TeamRepository extends BaseRepository<
 			.where(and(eq(teamUsers.teamId, teamId), eq(teamUsers.userId, userId)))
 	}
 
+	public async findUserIdsByTeamId({
+		teamId
+	}: {
+		teamId: string
+	}): Promise<string[]> {
+		const db = getDb()
+		const rows = await db
+			.select({ userId: teamUsers.userId })
+			.from(teamUsers)
+			.where(eq(teamUsers.teamId, teamId))
+		return rows.map((row) => row.userId)
+	}
+
 	public async findByInviteToken({
 		token
 	}: {

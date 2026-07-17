@@ -91,9 +91,22 @@ export enum AthleteInviteStatus {
 	Expired = 'Expired'
 }
 
+export enum RecorderInviteStatus {
+	Pending = 'Pending',
+	Accepted = 'Accepted',
+	Expired = 'Expired',
+	Cancelled = 'Cancelled'
+}
+
+export enum TeamRecorderStatus {
+	Pending = 'Pending',
+	Active = 'Active'
+}
+
 export enum JoinInviteKind {
 	Athlete = 'Athlete',
-	Team = 'Team'
+	Team = 'Team',
+	Recorder = 'Recorder'
 }
 
 export enum BulkAthleteImportIssueReason {

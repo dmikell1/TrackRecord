@@ -5,9 +5,9 @@ export const User = gql`
 		me: User
 	}
 
-	# extend type Mutation {
-
-	# }
+	extend type Mutation {
+		deleteMyAccount: Boolean!
+	}
 
 	type User {
 		id: ID!
@@ -32,5 +32,6 @@ export const User = gql`
 		InternalEmployee
 		Owner
 		Beta
+		Recorder
 	}
 `

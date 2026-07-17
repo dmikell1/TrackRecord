@@ -79,5 +79,17 @@ describe('sessionRoleAuth', () => {
 
 			expect(allowed).toBe(false)
 		})
+
+		it('should deny Recorder helpers coach mutations', () => {
+			const allowed = userHasCoachAccessForTeam({
+				userId: 'recorder-1',
+				teamId: 'team-1',
+				teams: [{ id: 'team-1', ownerId: 'coach-1' }],
+				companies: [{ ownerId: 'coach-1' }],
+				roles: [{ role: UserRoles.Recorder }]
+			})
+
+			expect(allowed).toBe(false)
+		})
 	})
 })

@@ -1,11 +1,16 @@
-import { injectable, inject, singleton } from 'tsyringe'
+import { createClerkClient } from '@clerk/backend'
+import { inject, injectable, singleton } from 'tsyringe'
 
-import type { UserFilter, UserRelationLoad } from '@packages/repositories/user/UserRepository'
-import { UserRepository } from '@packages/repositories/user/UserRepository'
 import { UserStatus } from '@packages/enums'
+import type {
+	UserFilter,
+	UserRelationLoad
+} from '@packages/repositories/user/UserRepository'
+import { UserRepository } from '@packages/repositories/user/UserRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { UserInterface } from '@packages/types'
+import { env } from '@packages/utils/validateEnvs'
 
 interface CreateUserData {
 	firstName: string
@@ -191,6 +196,56 @@ export class UserService {
 		filter: UserFilter
 	}): Promise<boolean> {
 		return this.userRepository.delete({ filter })
+	}
+
+	/**
+	 * Deletes the authenticated user's Clerk account and app data.
+	 * Owned companies/teams (and cascaded content) are removed.
+	 */
+	public async deleteMyAccount({
+		userId
+	}: {
+		userId: string
+	}): Promise<boolean> {
+		try {
+			const user = await this.userRepository.findOneOrFail({
+				filter: { id: userId }
+			})
+
+			// Remove auth first so the session cannot be reused while cleanup runs.
+			if (user.clerkId) {
+				await this.deleteClerkUser({ clerkId: user.clerkId })
+			}
+
+			const deleted = await this.userRepository.deleteAccountData({
+				userId
+			})
+			if (!deleted) {
+				throw new Error('Failed to delete account data')
+			}
+
+			this.reportingService.log({
+				message: 'User account deleted',
+				userId
+			})
+
+			return true
+		} catch (error) {
+			this.reportingService.reportError({ error: error as Error })
+			throw error
+		}
+	}
+
+	private async deleteClerkUser({
+		clerkId
+	}: {
+		clerkId: string
+	}): Promise<void> {
+		if (!env.CLERK_SECRET_KEY) {
+			throw new Error('CLERK_SECRET_KEY is not configured')
+		}
+		const client = createClerkClient({ secretKey: env.CLERK_SECRET_KEY })
+		await client.users.deleteUser(clerkId)
 	}
 
 	public async countUsers({ filter }: { filter: UserFilter }): Promise<number> {

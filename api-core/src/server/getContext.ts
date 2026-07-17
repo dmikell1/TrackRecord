@@ -10,6 +10,7 @@ import { VideoService } from '@packages/services/video/VideoService'
 import { VideoCommentService } from '@packages/services/videoComment/VideoCommentService'
 import { TrackRecordNotificationService } from '@packages/services/notification/TrackRecordNotificationService'
 import { AthleteInviteService } from '@packages/services/athleteInvite/AthleteInviteService'
+import { RecorderInviteService } from '@packages/services/recorderInvite/RecorderInviteService'
 import { Context } from '@packages/types'
 
 export const getContext = (): Omit<Context, 'req' | 'res'> => {
@@ -23,6 +24,7 @@ export const getContext = (): Omit<Context, 'req' | 'res'> => {
 	const videoCommentService = container.resolve(VideoCommentService)
 	const trackRecordNotificationService = container.resolve(TrackRecordNotificationService)
 	const athleteInviteService = container.resolve(AthleteInviteService)
+	const recorderInviteService = container.resolve(RecorderInviteService)
 
 	return {
 		userService,
@@ -34,6 +36,7 @@ export const getContext = (): Omit<Context, 'req' | 'res'> => {
 		videoService,
 		videoCommentService,
 		trackRecordNotificationService,
-		athleteInviteService
+		athleteInviteService,
+		recorderInviteService
 	}
 }

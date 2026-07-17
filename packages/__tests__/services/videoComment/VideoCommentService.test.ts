@@ -8,10 +8,12 @@ import { TrackRecordNotificationRepository } from '@packages/repositories/notifi
 import { VideoCommentRepository } from '@packages/repositories/videoComment/VideoCommentRepository'
 import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
+import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { VideoCommentService } from '@packages/services/videoComment/VideoCommentService'
 
 import { buildMockAthlete } from '@builders/athlete'
+import { buildMockTeam } from '@builders/team'
 import { buildMockVideo } from '@builders/video'
 
 describe('VideoCommentService', () => {
@@ -22,6 +24,7 @@ describe('VideoCommentService', () => {
 	let mockAthleteRepository: jest.Mocked<AthleteRepository>
 	let mockTeamRepository: jest.Mocked<TeamRepository>
 	let mockNotificationRepository: jest.Mocked<TrackRecordNotificationRepository>
+	let mockEntitlementService: jest.Mocked<EntitlementService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
 	const teamId = 'team-1'
@@ -35,8 +38,13 @@ describe('VideoCommentService', () => {
 		mockAthleteRepository = mock<AthleteRepository>()
 		mockTeamRepository = mock<TeamRepository>()
 		mockNotificationRepository = mock<TrackRecordNotificationRepository>()
+		mockEntitlementService = mock<EntitlementService>()
 		mockReportingService = mock<ReportingService>()
 		mockReportingService.withTrace.mockImplementation(({ fn }) => fn())
+		mockEntitlementService.assertCanWrite.mockResolvedValue(undefined)
+		mockTeamRepository.findOne.mockResolvedValue(
+			buildMockTeam({ id: teamId, companyId: 'company-1' })
+		)
 
 		container.registerInstance(VideoCommentRepository, mockVideoCommentRepository)
 		container.registerInstance(VideoRepository, mockVideoRepository)
@@ -50,6 +58,7 @@ describe('VideoCommentService', () => {
 			TrackRecordNotificationRepository,
 			mockNotificationRepository
 		)
+		container.registerInstance(EntitlementService, mockEntitlementService)
 		container.registerInstance(ReportingService, mockReportingService)
 
 		service = container.resolve(VideoCommentService)

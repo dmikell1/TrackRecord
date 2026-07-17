@@ -7,6 +7,10 @@ export const TrainingSession = {
 		_args: unknown,
 		{ videoService }: Context
 	): Promise<number> => {
+		if (typeof parent.videoCount === 'number') {
+			return parent.videoCount
+		}
+
 		if (parent.videos !== undefined && parent.videos !== null) {
 			return parent.videos.length
 		}
