@@ -1,7 +1,7 @@
 import { mock } from 'jest-mock-extended'
 import { container } from 'tsyringe'
 
-import { AthleteInviteStatus, JoinInviteKind } from '@packages/enums/trackRecord'
+import { AthleteInviteStatus, JoinInviteKind, ParentalConsentStatus } from '@packages/enums/trackRecord'
 import { UserRepository } from '@packages/repositories/user/UserRepository'
 import { AthleteInviteRepository } from '@packages/repositories/athleteInvite/AthleteInviteRepository'
 import { AthleteRepository } from '@packages/repositories/athlete/AthleteRepository'
@@ -24,6 +24,9 @@ jest.mock('@packages/services/queue/QueueService', () => ({
 }))
 
 const mockQueueService = queueService as jest.Mocked<typeof queueService>
+
+const adultDateOfBirth = new Date('2008-01-15T00:00:00.000Z')
+const under13DateOfBirth = new Date('2015-06-01T00:00:00.000Z')
 
 describe('AthleteInviteService', () => {
 	let service: AthleteInviteService
@@ -409,7 +412,11 @@ describe('AthleteInviteService', () => {
 				createdAt: new Date()
 			})
 
-			const result = await service.acceptJoin({ token: 'team-token', userId: 'user-1' })
+			const result = await service.acceptJoin({
+				token: 'team-token',
+				userId: 'user-1',
+				dateOfBirth: adultDateOfBirth
+			})
 
 			expect(mockAthleteRepository.create).toHaveBeenCalledWith({
 				data: expect.objectContaining({
@@ -418,7 +425,9 @@ describe('AthleteInviteService', () => {
 					firstName: 'Riley',
 					lastName: 'Runner',
 					email: 'runner@example.com',
-					userId: 'user-1'
+					userId: 'user-1',
+					dateOfBirth: adultDateOfBirth,
+					parentalConsentStatus: ParentalConsentStatus.NotRequired
 				})
 			})
 			expect(result).toEqual(athlete)
@@ -451,7 +460,8 @@ describe('AthleteInviteService', () => {
 			mockAthleteInviteRepository.findOne.mockResolvedValue(null)
 
 			await expect(
-				service.acceptAthleteInvite({ token: 'bad-token', userId: 'user-1' })
+				service.acceptAthleteInvite({
+				dateOfBirth: adultDateOfBirth, token: 'bad-token', userId: 'user-1' })
 			).rejects.toThrow('Invalid or expired invite token')
 		})
 
@@ -474,6 +484,7 @@ describe('AthleteInviteService', () => {
 			mockTeamRepository.addTeamUser.mockResolvedValue(undefined)
 
 			const result = await service.acceptAthleteInvite({
+				dateOfBirth: adultDateOfBirth,
 				token: invite.token,
 				userId: 'user-1'
 			})
@@ -493,7 +504,8 @@ describe('AthleteInviteService', () => {
 			mockAthleteInviteRepository.update.mockResolvedValue(expiredInvite)
 
 			await expect(
-				service.acceptAthleteInvite({ token: expiredInvite.token, userId: 'user-1' })
+				service.acceptAthleteInvite({
+				dateOfBirth: adultDateOfBirth, token: expiredInvite.token, userId: 'user-1' })
 			).rejects.toThrow('Invite has expired')
 
 			expect(mockAthleteInviteRepository.update).toHaveBeenCalledWith({
@@ -508,7 +520,8 @@ describe('AthleteInviteService', () => {
 			mockUserById({ email: 'test1@example.com' })
 
 			await expect(
-				service.acceptAthleteInvite({ token: invite.token, userId: 'user-1' })
+				service.acceptAthleteInvite({
+				dateOfBirth: adultDateOfBirth, token: invite.token, userId: 'user-1' })
 			).rejects.toThrow(
 				'This invite was sent to a different email address. Sign out and use the invited account.'
 			)
@@ -521,7 +534,8 @@ describe('AthleteInviteService', () => {
 			mockAthleteRepository.findOne.mockResolvedValue(null)
 
 			await expect(
-				service.acceptAthleteInvite({ token: invite.token, userId: 'user-1' })
+				service.acceptAthleteInvite({
+				dateOfBirth: adultDateOfBirth, token: invite.token, userId: 'user-1' })
 			).rejects.toThrow('Athlete record not found for this invite')
 		})
 
@@ -535,6 +549,11 @@ describe('AthleteInviteService', () => {
 			mockUserById({ email: athlete.email })
 			mockAthleteRepository.findOne.mockResolvedValue(athlete)
 			mockAthleteRepository.linkUser.mockResolvedValue(updatedAthlete)
+			mockAthleteRepository.update.mockResolvedValue({
+				...updatedAthlete,
+				dateOfBirth: adultDateOfBirth,
+				parentalConsentStatus: ParentalConsentStatus.NotRequired
+			})
 			mockTeamRepository.addTeamUser.mockResolvedValue(undefined)
 			mockTeamRepository.findOne.mockResolvedValue({
 				id: invite.teamId,
@@ -557,7 +576,8 @@ describe('AthleteInviteService', () => {
 				createdAt: new Date()
 			})
 
-			const result = await service.acceptAthleteInvite({ token: invite.token, userId: 'user-1' })
+			const result = await service.acceptAthleteInvite({
+				dateOfBirth: adultDateOfBirth, token: invite.token, userId: 'user-1' })
 
 			expect(mockAthleteRepository.linkUser).toHaveBeenCalledWith({ id: athlete.id, userId: 'user-1' })
 			expect(mockTeamRepository.addTeamUser).toHaveBeenCalledWith({ teamId: invite.teamId, userId: 'user-1' })
@@ -578,11 +598,18 @@ describe('AthleteInviteService', () => {
 		it('does not throw if notification creation fails', async () => {
 			const athlete = buildMockAthlete()
 			const invite = buildMockAthleteInvite({ teamId: athlete.teamId, email: athlete.email })
+			const updatedAthlete = {
+				...athlete,
+				userId: 'user-1',
+				dateOfBirth: adultDateOfBirth,
+				parentalConsentStatus: ParentalConsentStatus.NotRequired
+			}
 
 			mockAthleteInviteRepository.findOne.mockResolvedValue(invite)
 			mockUserById({ email: athlete.email })
 			mockAthleteRepository.findOne.mockResolvedValue(athlete)
-			mockAthleteRepository.linkUser.mockResolvedValue({ ...athlete, userId: 'user-1' })
+			mockAthleteRepository.linkUser.mockResolvedValue(updatedAthlete)
+			mockAthleteRepository.update.mockResolvedValue(updatedAthlete)
 			mockTeamRepository.addTeamUser.mockResolvedValue(undefined)
 			mockTeamRepository.findOne.mockResolvedValue({
 				id: invite.teamId,
@@ -597,14 +624,114 @@ describe('AthleteInviteService', () => {
 			mockNotificationRepository.create.mockRejectedValue(new Error('DB error'))
 
 			await expect(
-				service.acceptAthleteInvite({ token: invite.token, userId: 'user-1' })
+				service.acceptAthleteInvite({
+				dateOfBirth: adultDateOfBirth, token: invite.token, userId: 'user-1' })
 			).resolves.toBeDefined()
 
 			expect(mockReportingService.reportError).toHaveBeenCalled()
 		})
+
+		it('requires parent email and queues consent email for under-13 athletes', async () => {
+			const athlete = buildMockAthlete({ email: 'kid@example.com' })
+			const invite = buildMockAthleteInvite({ teamId: athlete.teamId, email: athlete.email })
+			const pendingAthlete = {
+				...athlete,
+				userId: 'user-1',
+				dateOfBirth: under13DateOfBirth,
+				parentalConsentStatus: ParentalConsentStatus.Pending,
+				parentEmail: 'parent@example.com',
+				parentalConsentToken: 'consent-token-1'
+			}
+
+			mockAthleteInviteRepository.findOne.mockResolvedValue(invite)
+			mockUserById({ email: athlete.email })
+			mockAthleteRepository.findOne.mockResolvedValue(athlete)
+			mockAthleteRepository.linkUser.mockResolvedValue({ ...athlete, userId: 'user-1' })
+			mockAthleteRepository.update.mockResolvedValue(pendingAthlete)
+			mockTeamRepository.addTeamUser.mockResolvedValue(undefined)
+			mockTeamRepository.findOne.mockResolvedValue({
+				id: invite.teamId,
+				name: 'Track Team',
+				ownerId: 'coach-1',
+				companyId: 'company-1',
+				settings: {},
+				createdAt: new Date(),
+				updatedAt: new Date()
+			})
+			mockAthleteInviteRepository.update.mockResolvedValue({
+				...invite,
+				status: AthleteInviteStatus.Accepted
+			})
+			mockNotificationRepository.create.mockResolvedValue({
+				id: 'notif-1',
+				userId: 'coach-1',
+				teamId: invite.teamId,
+				type: 'Join',
+				text: '',
+				payload: null,
+				read: false,
+				createdAt: new Date()
+			})
+
+			const result = await service.acceptAthleteInvite({
+				dateOfBirth: under13DateOfBirth,
+				parentEmail: 'parent@example.com',
+				token: invite.token,
+				userId: 'user-1'
+			})
+
+			expect(result.parentalConsentStatus).toBe(ParentalConsentStatus.Pending)
+			expect(mockQueueService.scheduleSendEmail).toHaveBeenCalledWith(
+				expect.objectContaining({
+					to: 'parent@example.com'
+				})
+			)
+		})
+
+		it('throws when under-13 join is missing parent email', async () => {
+			const athlete = buildMockAthlete({ email: 'kid@example.com' })
+			const invite = buildMockAthleteInvite({ teamId: athlete.teamId, email: athlete.email })
+
+			mockAthleteInviteRepository.findOne.mockResolvedValue(invite)
+			mockUserById({ email: athlete.email })
+			mockAthleteRepository.findOne.mockResolvedValue(athlete)
+			mockAthleteRepository.linkUser.mockResolvedValue({ ...athlete, userId: 'user-1' })
+
+			await expect(
+				service.acceptAthleteInvite({
+					dateOfBirth: under13DateOfBirth,
+					token: invite.token,
+					userId: 'user-1'
+				})
+			).rejects.toThrow('A valid parent or guardian email is required')
+		})
+	})
+
+	describe('grantParentalConsent', () => {
+		it('grants consent for a pending athlete', async () => {
+			const athlete = buildMockAthlete({
+				parentalConsentStatus: ParentalConsentStatus.Pending,
+				parentalConsentToken: 'consent-token',
+				parentEmail: 'parent@example.com'
+			})
+			const granted = {
+				...athlete,
+				parentalConsentStatus: ParentalConsentStatus.Granted,
+				parentalConsentToken: null,
+				parentalConsentAt: new Date()
+			}
+
+			mockAthleteRepository.findOne.mockResolvedValue(athlete)
+			mockAthleteRepository.update.mockResolvedValue(granted)
+
+			const result = await service.grantParentalConsent({ token: 'consent-token' })
+
+			expect(result.parentalConsentStatus).toBe(ParentalConsentStatus.Granted)
+		})
 	})
 
 	describe('completeAthleteInviteSignup', () => {
+
 		it('creates backend user from profile and accepts a pending invite', async () => {
 			const athlete = buildMockAthlete({ email: 'runner@example.com' })
 			const invite = buildMockAthleteInvite({
@@ -630,6 +757,12 @@ describe('AthleteInviteService', () => {
 				.mockResolvedValueOnce(invite)
 			mockAthleteRepository.findOne.mockResolvedValue(athlete)
 			mockAthleteRepository.linkUser.mockResolvedValue({ ...athlete, userId: 'user-1' })
+			mockAthleteRepository.update.mockResolvedValue({
+				...athlete,
+				userId: 'user-1',
+				dateOfBirth: adultDateOfBirth,
+				parentalConsentStatus: ParentalConsentStatus.NotRequired
+			})
 			mockTeamRepository.addTeamUser.mockResolvedValue(undefined)
 			mockTeamRepository.findOne.mockResolvedValue({
 				id: invite.teamId,
@@ -658,6 +791,7 @@ describe('AthleteInviteService', () => {
 			const result = await service.completeAthleteInviteSignup({
 				token: invite.token,
 				clerkId: 'clerk-1',
+				dateOfBirth: adultDateOfBirth,
 				profile: {
 					firstName: 'Runner',
 					lastName: 'Example',
@@ -697,6 +831,7 @@ describe('AthleteInviteService', () => {
 			mockTeamRepository.addTeamUser.mockResolvedValue(undefined)
 
 			const result = await service.completeAthleteInviteSignup({
+				dateOfBirth: adultDateOfBirth,
 				token: invite.token,
 				clerkId: 'clerk-1'
 			})

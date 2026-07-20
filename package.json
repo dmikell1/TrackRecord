@@ -69,6 +69,7 @@
 		"postgres": "^3.4.5",
 		"puppeteer": "^23.11.0",
 		"reflect-metadata": "^0.2.2",
+		"resend": "^6.17.2",
 		"robots-parser": "^3.0.1",
 		"tsyringe": "^4.10.0",
 		"uuid4": "^2.0.3",

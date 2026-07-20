@@ -7,37 +7,41 @@ const escapeHtml = ({ value }: { value: string }): string => {
 		.replace(/'/g, '&#39;')
 }
 
-export const buildRecorderInviteEmail = ({
+export const buildParentalConsentEmail = ({
+	parentEmail: _parentEmail,
+	athleteFirstName,
+	athleteLastName,
 	teamName,
-	coachName,
-	inviteUrl,
-	expiresInDays
+	consentUrl
 }: {
+	parentEmail: string
+	athleteFirstName: string
+	athleteLastName: string
 	teamName: string
-	coachName: string
-	inviteUrl: string
-	expiresInDays: number
+	consentUrl: string
 }): { subject: string; text: string; html: string } => {
-	const subject = `You're invited as a recorder helper on ${teamName}`
+	const athleteName =
+		`${athleteFirstName} ${athleteLastName}`.trim() || 'your child'
+	const subject = `Please approve ${athleteName}'s TrackRecord account`
 
-	const safeCoachName = escapeHtml({ value: coachName })
+	const safeAthleteName = escapeHtml({ value: athleteName })
 	const safeTeamName = escapeHtml({ value: teamName })
-	const safeInviteUrl = escapeHtml({ value: inviteUrl })
+	const safeConsentUrl = escapeHtml({ value: consentUrl })
 
 	const text = `Hi,
 
-${coachName} has invited you to help out with ${teamName} on TrackRecord as a recorder helper.
+${athleteName} has joined ${teamName} on TrackRecord, an app coaches use to record training videos and track results.
 
-As a recorder helper, you can capture and upload videos during practices and meets, and view team sessions and athletes.
+Because they're a minor, we need a parent or guardian to approve their account before they can comment on videos or use other interactive features.
 
-Join as recorder: ${inviteUrl}
+Approve account: ${consentUrl}
 
 If the button doesn't work, copy and paste this link into your browser:
-${inviteUrl}
+${consentUrl}
 
-This invite link expires in ${expiresInDays} days.
+If you did not expect this email, you can safely ignore it.
 
-See you on the track,
+Thank you,
 The TrackRecord Team`
 
 	const html = `<!DOCTYPE html>
@@ -47,7 +51,7 @@ The TrackRecord Team`
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
-<title>You're invited as a recorder helper on TrackRecord</title>
+<title>Parent/guardian approval needed on TrackRecord</title>
 <!--[if mso]>
 <style>
   table {border-collapse:collapse;}
@@ -57,7 +61,7 @@ The TrackRecord Team`
 </head>
 <body style="margin:0; padding:0; background-color:#F4F2EA; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#F4F2EA;">
-    ${safeCoachName} invited you to help record for ${safeTeamName} on TrackRecord. Accept below to get started.
+    ${safeAthleteName} joined ${safeTeamName} on TrackRecord and needs your approval to unlock full account features.
   </div>
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;</div>
 
@@ -80,12 +84,12 @@ The TrackRecord Team`
 
           <tr>
             <td style="padding:16px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#0D0D0D;">
-              <strong>${safeCoachName}</strong> has invited you to help out with <strong>${safeTeamName}</strong> on TrackRecord as a recorder helper.
+              <strong>${safeAthleteName}</strong> has joined <strong>${safeTeamName}</strong> on TrackRecord, an app coaches use to record training videos and track results.
             </td>
           </tr>
           <tr>
             <td style="padding:16px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#0D0D0D;">
-              As a recorder helper, you can capture and upload videos during practices and meets, and view team sessions and athletes.
+              Because they're a minor, we need a parent or guardian to approve their account before they can comment on videos or use other interactive features.
             </td>
           </tr>
 
@@ -94,7 +98,7 @@ The TrackRecord Team`
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" bgcolor="#D7F229" style="border-radius:999px;">
-                    <a href="${safeInviteUrl}" target="_blank" style="display:block; padding:14px 30px; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:700; color:#0D0D0D; text-decoration:none; border-radius:999px;">Join as recorder</a>
+                    <a href="${safeConsentUrl}" target="_blank" style="display:block; padding:14px 30px; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:700; color:#0D0D0D; text-decoration:none; border-radius:999px;">Approve account</a>
                   </td>
                 </tr>
               </table>
@@ -104,13 +108,13 @@ The TrackRecord Team`
           <tr>
             <td style="padding:20px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:20px; color:#6B6B62;">
               If the button doesn't work, copy and paste this link into your browser:<br>
-              <a href="${safeInviteUrl}" target="_blank" style="color:#4A5A1E; text-decoration:underline; word-break:break-all;">${safeInviteUrl}</a>
+              <a href="${safeConsentUrl}" target="_blank" style="color:#4A5A1E; text-decoration:underline; word-break:break-all;">${safeConsentUrl}</a>
             </td>
           </tr>
 
           <tr>
             <td style="padding:20px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:20px; color:#6B6B62;">
-              This invite link expires in ${expiresInDays} days.
+              If you did not expect this email, you can safely ignore it.
             </td>
           </tr>
 
@@ -122,7 +126,7 @@ The TrackRecord Team`
 
           <tr>
             <td style="padding:20px 40px 32px 40px; font-family:Arial, Helvetica, sans-serif; font-size:14px; line-height:22px; color:#0D0D0D;">
-              See you on the track,<br>
+              Thank you,<br>
               The TrackRecord Team
             </td>
           </tr>
@@ -132,7 +136,7 @@ The TrackRecord Team`
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
           <tr>
             <td align="center" style="padding:20px 40px; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:18px; color:#9A9A90;">
-              You're receiving this email because ${safeCoachName} invited you to a team on TrackRecord.<br>
+              You're receiving this email because ${safeAthleteName} joined a team on TrackRecord and listed you as parent or guardian.<br>
               TrackRecord, Inc.
             </td>
           </tr>

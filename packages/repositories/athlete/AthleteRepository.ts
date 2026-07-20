@@ -3,6 +3,7 @@ import { inject, injectable, singleton } from 'tsyringe'
 
 import { getDb } from '@packages/database/createPostgresConnection'
 import { athletes } from '@packages/database/schema'
+import { ParentalConsentStatus } from '@packages/enums/trackRecord'
 import { BaseRepository } from '@packages/repositories/BaseRepository'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
@@ -14,6 +15,7 @@ export type AthleteFilter = {
 	companyId?: string
 	userId?: string
 	email?: string
+	parentalConsentToken?: string
 	includeDeleted?: boolean
 }
 
@@ -42,6 +44,13 @@ export class AthleteRepository extends BaseRepository<
 			email: row.email,
 			phone: row.phone,
 			color: row.color,
+			dateOfBirth: row.dateOfBirth,
+			parentalConsentStatus:
+				(row.parentalConsentStatus as ParentalConsentStatus) ??
+				ParentalConsentStatus.NotRequired,
+			parentEmail: row.parentEmail,
+			parentalConsentToken: row.parentalConsentToken,
+			parentalConsentAt: row.parentalConsentAt,
 			deletedAt: row.deletedAt,
 			createdAt: row.createdAt,
 			updatedAt: row.updatedAt
@@ -55,13 +64,27 @@ export class AthleteRepository extends BaseRepository<
 		if (filter.companyId !== undefined) parts.push(eq(athletes.companyId, filter.companyId))
 		if (filter.userId !== undefined) parts.push(eq(athletes.userId, filter.userId))
 		if (filter.email !== undefined) parts.push(eq(athletes.email, filter.email.toLowerCase()))
+		if (filter.parentalConsentToken !== undefined) {
+			parts.push(eq(athletes.parentalConsentToken, filter.parentalConsentToken))
+		}
 		if (filter.includeDeleted !== true) parts.push(isNull(athletes.deletedAt))
 		return parts
 	}
 
 	public async create({ data }: {
 		data: Pick<AthleteInterface, 'teamId' | 'companyId' | 'firstName' | 'lastName' | 'email' | 'color'> &
-			Partial<Pick<AthleteInterface, 'userId' | 'phone'>>
+			Partial<
+				Pick<
+					AthleteInterface,
+					| 'userId'
+					| 'phone'
+					| 'dateOfBirth'
+					| 'parentalConsentStatus'
+					| 'parentEmail'
+					| 'parentalConsentToken'
+					| 'parentalConsentAt'
+				>
+			>
 	}): Promise<AthleteInterface> {
 		return super.insertReturning({
 			values: {
@@ -72,7 +95,18 @@ export class AthleteRepository extends BaseRepository<
 				email: data.email.toLowerCase(),
 				color: data.color,
 				...(data.userId !== undefined && { userId: data.userId }),
-				...(data.phone !== undefined && { phone: data.phone })
+				...(data.phone !== undefined && { phone: data.phone }),
+				...(data.dateOfBirth !== undefined && { dateOfBirth: data.dateOfBirth }),
+				...(data.parentalConsentStatus !== undefined && {
+					parentalConsentStatus: data.parentalConsentStatus
+				}),
+				...(data.parentEmail !== undefined && { parentEmail: data.parentEmail }),
+				...(data.parentalConsentToken !== undefined && {
+					parentalConsentToken: data.parentalConsentToken
+				}),
+				...(data.parentalConsentAt !== undefined && {
+					parentalConsentAt: data.parentalConsentAt
+				})
 			}
 		})
 	}

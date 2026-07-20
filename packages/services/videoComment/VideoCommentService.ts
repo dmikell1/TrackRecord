@@ -15,6 +15,7 @@ import type { AthleteInterface } from '@packages/types/athlete'
 import type { TeamInterface } from '@packages/types/team'
 import type { VideoInterface } from '@packages/types/video'
 import type { VideoCommentInterface } from '@packages/types/videoComment'
+import { athleteCanInteract } from '@packages/utils/coppaAge'
 import { formatTrackEventLabel } from '@packages/utils/formatTrackEventLabel'
 
 @injectable()
@@ -50,6 +51,20 @@ export class VideoCommentService {
 			throw new Error('Team not found')
 		}
 		await this.entitlementService.assertCanWrite({ companyId: team.companyId })
+
+		const commenterAthlete = await this.athleteRepository.findOne({
+			filter: { teamId, userId: data.userId }
+		})
+		if (
+			commenterAthlete &&
+			!athleteCanInteract({
+				parentalConsentStatus: commenterAthlete.parentalConsentStatus
+			})
+		) {
+			throw new Error(
+				'Parental consent is required before commenting. Ask a parent or guardian to approve your account.'
+			)
+		}
 
 		const comment = await this.videoCommentRepository.create({ data })
 

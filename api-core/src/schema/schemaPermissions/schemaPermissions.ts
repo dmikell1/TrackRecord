@@ -18,6 +18,7 @@ export const permissions = {
 		athleteProgression: authorizationRules.withTeamAccess,
 		athleteInvite: authorizationRules.withPublicAccess,
 		joinInfo: authorizationRules.withPublicAccess,
+		parentalConsentInfo: authorizationRules.withPublicAccess,
 		teamRecorders: authorizationRules.withCoachAccess
 	},
 	Mutation: {
@@ -37,6 +38,7 @@ export const permissions = {
 		sendAthleteInviteEmail: authorizationRules.withCoachAccess,
 		resendAthleteInvite: authorizationRules.withCoachAccess,
 		acceptAthleteInvite: authorizationRules.isClerkOrAppAuthenticated,
+		grantParentalConsent: authorizationRules.withPublicAccess,
 		createRecorderInvite: authorizationRules.withCoachAccess,
 		resendRecorderInvite: authorizationRules.withCoachAccess,
 		acceptRecorderInvite: authorizationRules.isClerkOrAppAuthenticated,

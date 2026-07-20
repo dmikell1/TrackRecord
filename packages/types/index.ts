@@ -43,7 +43,7 @@ export type {
 	CompanySubscriptionEntitlements
 } from './company'
 export type { TeamInterface } from './team'
-export type { AthleteInterface } from './athlete'
+export type { AthleteInterface, ParentalConsentInfoInterface } from './athlete'
 export type { TrainingSessionInterface } from './trainingSession'
 export type { VideoInterface, VideoResult } from './video'
 export type { VideoCommentInterface } from './videoComment'

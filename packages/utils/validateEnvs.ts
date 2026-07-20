@@ -18,10 +18,10 @@ const envSchema = z
 		CHANCE_SEED: z.string().default('chance_seed'),
 		DASHBOARD: z.string().default('false'),
 		SESSION_SECRET: z.string().default('secret'),
-		// SENDGRID
-		SENDGRID_KEY: z.string().default(''),
-		SENDGRID_FROM_EMAIL: z.string().default('invites@trackrecord.app'),
-		SENDGRID_FROM_NAME: z.string().default('TrackRecord'),
+		// RESEND
+		RESEND_API_KEY: z.string().default(''),
+		RESEND_FROM_EMAIL: z.string().default('invites@trackrecord.app'),
+		RESEND_FROM_NAME: z.string().default('TrackRecord'),
 		TRACKRECORD_APP_URL: z.string().default('https://trackrecord.app'),
 		// POSTGRES (Drizzle)
 		DATABASE_URL: z

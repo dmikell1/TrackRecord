@@ -124,6 +124,13 @@ export const athletes = pgTable('athletes', {
 	email: varchar('email', { length: 255 }).notNull(),
 	phone: varchar('phone', { length: 30 }),
 	color: varchar('color', { length: 20 }).notNull().default('#3B82F6'),
+	dateOfBirth: timestamp('date_of_birth', { withTimezone: true }),
+	parentalConsentStatus: varchar('parental_consent_status', { length: 50 })
+		.notNull()
+		.default('NotRequired'),
+	parentEmail: varchar('parent_email', { length: 255 }),
+	parentalConsentToken: varchar('parental_consent_token', { length: 255 }),
+	parentalConsentAt: timestamp('parental_consent_at', { withTimezone: true }),
 	deletedAt: timestamp('deleted_at', { withTimezone: true }),
 	...standardTimestamps
 })

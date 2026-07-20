@@ -3,7 +3,11 @@ import 'reflect-metadata'
 import { subDays } from 'date-fns'
 import { container } from 'tsyringe'
 
-import { connectToPostgresDatabase, disconnectPostgresDatabase } from '@packages/database/createPostgresConnection'
+import {
+	closePostgresConnection,
+	connectToPostgresDatabase,
+	POSTGRES_URL
+} from '@packages/database/createPostgresConnection'
 import { SessionType, TrackEvent } from '@packages/enums/trackRecord'
 import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
@@ -16,11 +20,10 @@ import { VideoService } from '@packages/services/video/VideoService'
 import type { AthleteInterface } from '@packages/types/athlete'
 import type { TrainingSessionInterface } from '@packages/types/trainingSession'
 import type { VideoResult } from '@packages/types/video'
-import { env } from '@packages/utils/validateEnvs'
 import { buildFoulResult, buildMarkResult, buildVerticalMarkResult } from '@builders/video'
 
 const SEED_EMAIL_DOMAIN = '@seed.trackrecord.local'
-const MIN_SEED_VIDEOS = 14
+const MIN_SEED_VIDEOS = 28
 
 const SAMPLE_VIDEOS = [
 	'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
@@ -57,8 +60,16 @@ const seedAthletes = [
 	}
 ] as const
 
+type SeedSessionKey =
+	| 'earlySeasonInvite'
+	| 'dualMeet'
+	| 'countyChampionships'
+	| 'conferenceFinals'
+	| 'stateMeet'
+	| 'springPractice'
+
 interface SeedVideoSpec {
-	sessionKey: 'stateMeet' | 'springPractice' | 'conferenceFinals'
+	sessionKey: SeedSessionKey
 	athleteEmail: string
 	event: TrackEvent
 	result: VideoResult
@@ -67,7 +78,48 @@ interface SeedVideoSpec {
 	videoIndex: number
 }
 
+/**
+ * Progression graph only includes Meet sessions (practice is ignored).
+ * Each primary athlete has the same event across multiple meets so the chart has a real season curve.
+ */
 const seedVideoSpecs: SeedVideoSpec[] = [
+	// Maya Chen — Long Jump season progression
+	{
+		sessionKey: 'earlySeasonInvite',
+		athleteEmail: `maya.chen${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.LongJump,
+		result: buildMarkResult({ value: 5.12 }),
+		orientation: 'landscape',
+		durationMs: 3800,
+		videoIndex: 0
+	},
+	{
+		sessionKey: 'dualMeet',
+		athleteEmail: `maya.chen${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.LongJump,
+		result: buildMarkResult({ value: 5.28 }),
+		orientation: 'landscape',
+		durationMs: 3900,
+		videoIndex: 1
+	},
+	{
+		sessionKey: 'countyChampionships',
+		athleteEmail: `maya.chen${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.LongJump,
+		result: buildMarkResult({ value: 5.41 }),
+		orientation: 'landscape',
+		durationMs: 4000,
+		videoIndex: 2
+	},
+	{
+		sessionKey: 'conferenceFinals',
+		athleteEmail: `maya.chen${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.LongJump,
+		result: buildMarkResult({ value: 5.55 }),
+		orientation: 'landscape',
+		durationMs: 4100,
+		videoIndex: 3
+	},
 	{
 		sessionKey: 'stateMeet',
 		athleteEmail: `maya.chen${SEED_EMAIL_DOMAIN}`,
@@ -75,7 +127,7 @@ const seedVideoSpecs: SeedVideoSpec[] = [
 		result: buildMarkResult({ value: 5.42 }),
 		orientation: 'landscape',
 		durationMs: 3900,
-		videoIndex: 0
+		videoIndex: 4
 	},
 	{
 		sessionKey: 'stateMeet',
@@ -84,42 +136,138 @@ const seedVideoSpecs: SeedVideoSpec[] = [
 		result: buildMarkResult({ value: 5.82 }),
 		orientation: 'landscape',
 		durationMs: 4200,
+		videoIndex: 0
+	},
+
+	// Jordan Williams — High Jump season progression
+	{
+		sessionKey: 'earlySeasonInvite',
+		athleteEmail: `jordan.williams${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.HighJump,
+		result: buildVerticalMarkResult({ value: 1.6, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 5800,
 		videoIndex: 1
 	},
 	{
-		sessionKey: 'stateMeet',
+		sessionKey: 'dualMeet',
 		athleteEmail: `jordan.williams${SEED_EMAIL_DOMAIN}`,
-		event: TrackEvent.TripleJump,
-		result: buildMarkResult({ value: 12.4 }),
-		orientation: 'landscape',
-		durationMs: 4500,
+		event: TrackEvent.HighJump,
+		result: buildVerticalMarkResult({ value: 1.65, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 5900,
 		videoIndex: 2
 	},
 	{
-		sessionKey: 'stateMeet',
+		sessionKey: 'countyChampionships',
 		athleteEmail: `jordan.williams${SEED_EMAIL_DOMAIN}`,
-		event: TrackEvent.TripleJump,
-		result: buildMarkResult({ value: 13.1 }),
-		orientation: 'landscape',
-		durationMs: 4600,
-		videoIndex: 0
+		event: TrackEvent.HighJump,
+		result: buildVerticalMarkResult({ value: 1.7, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 6000,
+		videoIndex: 3
 	},
 	{
 		sessionKey: 'conferenceFinals',
 		athleteEmail: `jordan.williams${SEED_EMAIL_DOMAIN}`,
 		event: TrackEvent.HighJump,
-		result: buildVerticalMarkResult({ value: 1.75, cleared: false }),
+		result: buildVerticalMarkResult({ value: 1.75, cleared: true }),
 		orientation: 'portrait',
 		durationMs: 6100,
+		videoIndex: 4
+	},
+	{
+		sessionKey: 'stateMeet',
+		athleteEmail: `jordan.williams${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.HighJump,
+		result: buildVerticalMarkResult({ value: 1.78, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 6200,
+		videoIndex: 0
+	},
+	{
+		sessionKey: 'stateMeet',
+		athleteEmail: `jordan.williams${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.HighJump,
+		result: buildVerticalMarkResult({ value: 1.81, cleared: false }),
+		orientation: 'portrait',
+		durationMs: 6300,
+		videoIndex: 1
+	},
+
+	// Ava Martinez — Pole Vault season progression
+	{
+		sessionKey: 'earlySeasonInvite',
+		athleteEmail: `ava.martinez${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.PoleVault,
+		result: buildVerticalMarkResult({ value: 2.9, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 6800,
+		videoIndex: 2
+	},
+	{
+		sessionKey: 'dualMeet',
+		athleteEmail: `ava.martinez${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.PoleVault,
+		result: buildVerticalMarkResult({ value: 3.0, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 6900,
 		videoIndex: 3
+	},
+	{
+		sessionKey: 'countyChampionships',
+		athleteEmail: `ava.martinez${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.PoleVault,
+		result: buildVerticalMarkResult({ value: 3.1, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 7000,
+		videoIndex: 4
 	},
 	{
 		sessionKey: 'conferenceFinals',
 		athleteEmail: `ava.martinez${SEED_EMAIL_DOMAIN}`,
 		event: TrackEvent.PoleVault,
-		result: buildVerticalMarkResult({ value: 3.25, cleared: false }),
+		result: buildVerticalMarkResult({ value: 3.25, cleared: true }),
 		orientation: 'portrait',
 		durationMs: 7200,
+		videoIndex: 0
+	},
+	{
+		sessionKey: 'stateMeet',
+		athleteEmail: `ava.martinez${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.PoleVault,
+		result: buildVerticalMarkResult({ value: 3.35, cleared: true }),
+		orientation: 'portrait',
+		durationMs: 7400,
+		videoIndex: 1
+	},
+
+	// Ethan Brooks — Discus season progression
+	{
+		sessionKey: 'earlySeasonInvite',
+		athleteEmail: `ethan.brooks${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.Discus,
+		result: buildMarkResult({ value: 38.2 }),
+		orientation: 'landscape',
+		durationMs: 4800,
+		videoIndex: 2
+	},
+	{
+		sessionKey: 'dualMeet',
+		athleteEmail: `ethan.brooks${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.Discus,
+		result: buildMarkResult({ value: 39.8 }),
+		orientation: 'landscape',
+		durationMs: 4900,
+		videoIndex: 3
+	},
+	{
+		sessionKey: 'countyChampionships',
+		athleteEmail: `ethan.brooks${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.Discus,
+		result: buildMarkResult({ value: 41.1 }),
+		orientation: 'landscape',
+		durationMs: 5000,
 		videoIndex: 4
 	},
 	{
@@ -129,8 +277,19 @@ const seedVideoSpecs: SeedVideoSpec[] = [
 		result: buildMarkResult({ value: 42.3 }),
 		orientation: 'landscape',
 		durationMs: 5100,
+		videoIndex: 0
+	},
+	{
+		sessionKey: 'stateMeet',
+		athleteEmail: `ethan.brooks${SEED_EMAIL_DOMAIN}`,
+		event: TrackEvent.Discus,
+		result: buildMarkResult({ value: 43.7 }),
+		orientation: 'landscape',
+		durationMs: 5200,
 		videoIndex: 1
 	},
+
+	// Extra variety (practice + secondary events — not on progression chart)
 	{
 		sessionKey: 'springPractice',
 		athleteEmail: `ava.martinez${SEED_EMAIL_DOMAIN}`,
@@ -187,11 +346,11 @@ const seedVideoSpecs: SeedVideoSpec[] = [
 	},
 	{
 		sessionKey: 'stateMeet',
-		athleteEmail: `ava.martinez${SEED_EMAIL_DOMAIN}`,
+		athleteEmail: `jordan.williams${SEED_EMAIL_DOMAIN}`,
 		event: TrackEvent.TripleJump,
-		result: buildFoulResult(),
+		result: buildMarkResult({ value: 13.1 }),
 		orientation: 'landscape',
-		durationMs: 3100,
+		durationMs: 4600,
 		videoIndex: 3
 	}
 ]
@@ -271,7 +430,7 @@ const run = async (): Promise<void> => {
 	const coachEmail = process.env.SEED_COACH_EMAIL ?? 'devyn.mikell@gmail.com'
 	const reset = shouldReset()
 
-	await connectToPostgresDatabase({ connectionString: env.DATABASE_URL })
+	await connectToPostgresDatabase({ dbString: POSTGRES_URL })
 
 	const userService = container.resolve(UserService)
 	const teamService = container.resolve(TeamService)
@@ -322,24 +481,67 @@ const run = async (): Promise<void> => {
 	const athleteByEmail = new Map(athletes.map(a => [a.email, a]))
 
 	const sessionDefs = {
+		earlySeasonInvite: {
+			name: 'Early Season Invite',
+			date: subDays(new Date(), 90),
+			type: SessionType.Meet
+		},
+		dualMeet: {
+			name: 'Dual Meet vs Riverside',
+			date: subDays(new Date(), 60),
+			type: SessionType.Meet
+		},
+		countyChampionships: {
+			name: 'County Championships',
+			date: subDays(new Date(), 45),
+			type: SessionType.Meet
+		},
+		conferenceFinals: {
+			name: 'Conference Finals',
+			date: subDays(new Date(), 21),
+			type: SessionType.Meet
+		},
 		stateMeet: {
 			name: 'State Meet',
-			date: subDays(new Date(), 14),
+			date: subDays(new Date(), 7),
 			type: SessionType.Meet
 		},
 		springPractice: {
 			name: 'Spring Practice',
 			date: subDays(new Date(), 3),
 			type: SessionType.Practice
-		},
-		conferenceFinals: {
-			name: 'Conference Finals',
-			date: subDays(new Date(), 7),
-			type: SessionType.Meet
 		}
 	} as const
 
 	const sessions = {
+		earlySeasonInvite: await ensureSession({
+			trainingSessionService,
+			teamId: team.id,
+			companyId: company.id,
+			coachId: coach.id,
+			...sessionDefs.earlySeasonInvite
+		}),
+		dualMeet: await ensureSession({
+			trainingSessionService,
+			teamId: team.id,
+			companyId: company.id,
+			coachId: coach.id,
+			...sessionDefs.dualMeet
+		}),
+		countyChampionships: await ensureSession({
+			trainingSessionService,
+			teamId: team.id,
+			companyId: company.id,
+			coachId: coach.id,
+			...sessionDefs.countyChampionships
+		}),
+		conferenceFinals: await ensureSession({
+			trainingSessionService,
+			teamId: team.id,
+			companyId: company.id,
+			coachId: coach.id,
+			...sessionDefs.conferenceFinals
+		}),
 		stateMeet: await ensureSession({
 			trainingSessionService,
 			teamId: team.id,
@@ -353,13 +555,6 @@ const run = async (): Promise<void> => {
 			companyId: company.id,
 			coachId: coach.id,
 			...sessionDefs.springPractice
-		}),
-		conferenceFinals: await ensureSession({
-			trainingSessionService,
-			teamId: team.id,
-			companyId: company.id,
-			coachId: coach.id,
-			...sessionDefs.conferenceFinals
 		})
 	}
 
@@ -466,18 +661,21 @@ const run = async (): Promise<void> => {
 	console.log(`Coach: ${coach.firstName} ${coach.lastName} (${coach.email})`)
 	console.log(`Team:  ${team.name} (${team.id})`)
 	console.log(`Athletes: ${athletes.length}`)
-	console.log(`Sessions: 3`)
+	console.log(`Sessions: ${Object.keys(sessions).length}`)
 	console.log(`Videos: ${allVideos.length} (${createdVideoCount} added this run)`)
-	console.log('\nReload the app to see dummy videos and results.\n')
+	console.log(
+		'\nProgression chart: open Maya (LJ), Jordan (HJ), Ava (PV), or Ethan (Discus).'
+	)
+	console.log('Reload the app to see dummy athletes and historical marks.\n')
 
-	await disconnectPostgresDatabase()
+	await closePostgresConnection()
 }
 
 void run().catch(async (error: unknown) => {
 	const message = error instanceof Error ? error.message : String(error)
 	console.error('Seed failed:', message)
 	try {
-		await disconnectPostgresDatabase()
+		await closePostgresConnection()
 	} catch {
 		// ignore disconnect errors
 	}

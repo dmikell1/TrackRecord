@@ -105,8 +105,7 @@ export class CoachSignupService {
 		}
 
 		if (inviteToken) {
-			await this.athleteInviteService.completeAthleteInviteSignup({
-				token: inviteToken,
+			await this.athleteInviteService.ensureUserForInviteSignup({
 				clerkId,
 				profile: {
 					firstName: firstName ?? '',

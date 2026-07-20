@@ -1,17 +1,23 @@
-import axios from 'axios'
 import { mock } from 'jest-mock-extended'
 import { container } from 'tsyringe'
 
 import { EmailService } from '@packages/services/email/EmailService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 
-jest.mock('axios')
+const mockSend = jest.fn()
+
+jest.mock('resend', () => ({
+	Resend: jest.fn().mockImplementation(() => ({
+		emails: {
+			send: mockSend
+		}
+	}))
+}))
+
 jest.mock('@packages/utils/isDevelopment', () => ({
 	isDevelopment: true,
 	isProduction: false
 }))
-
-const mockedAxios = axios as jest.Mocked<typeof axios>
 
 describe('EmailService', () => {
 	let service: EmailService
@@ -21,7 +27,7 @@ describe('EmailService', () => {
 		mockReportingService = mock<ReportingService>()
 		container.registerInstance(ReportingService, mockReportingService)
 		service = container.resolve(EmailService)
-		mockedAxios.post.mockReset()
+		mockSend.mockReset()
 	})
 
 	afterEach(() => {
@@ -30,7 +36,7 @@ describe('EmailService', () => {
 	})
 
 	describe('sendEmail', () => {
-		it('skips sending in development when SendGrid is not configured', async () => {
+		it('skips sending in development when Resend is not configured', async () => {
 			await service.sendEmail({
 				to: 'runner@example.com',
 				subject: 'Test',
@@ -38,7 +44,8 @@ describe('EmailService', () => {
 				html: '<p>Hello</p>'
 			})
 
-			expect(mockedAxios.post).not.toHaveBeenCalled()
+			expect(mockSend).not.toHaveBeenCalled()
+			expect(mockReportingService.log).toHaveBeenCalled()
 		})
 	})
 })

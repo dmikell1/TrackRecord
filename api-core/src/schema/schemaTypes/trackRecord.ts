@@ -103,6 +103,12 @@ export const TrackRecord = gql`
 		Expired
 	}
 
+	enum ParentalConsentStatus {
+		NotRequired
+		Pending
+		Granted
+	}
+
 	enum BulkAthleteImportIssueReason {
 		MissingName
 		InvalidEmail
@@ -179,9 +185,20 @@ export const TrackRecord = gql`
 		phone: String
 		color: String!
 		avatarUrl: String
+		dateOfBirth: DateTime
+		parentalConsentStatus: ParentalConsentStatus!
+		parentEmail: String
+		parentalConsentAt: DateTime
 		deletedAt: DateTime
 		createdAt: DateTime!
 		updatedAt: DateTime!
+	}
+
+	type ParentalConsentInfo {
+		athleteFirstName: String!
+		athleteLastName: String!
+		teamName: String!
+		status: ParentalConsentStatus!
 	}
 
 	type AthleteInvite {
@@ -474,6 +491,7 @@ export const TrackRecord = gql`
 		): AthleteProgression!
 		athleteInvite(token: String!): AthleteInvite
 		joinInfo(token: String!): JoinInfo
+		parentalConsentInfo(token: String!): ParentalConsentInfo
 		teamRecorders(team: ID!): [TeamRecorderEntry!]!
 	}
 
@@ -491,7 +509,12 @@ export const TrackRecord = gql`
 		createAthleteInvite(data: CreateAthleteInviteInput!): AthleteInvite!
 		sendAthleteInviteEmail(team: ID!, inviteId: ID!): Boolean!
 		resendAthleteInvite(team: ID!, athleteId: ID!): AthleteInvite!
-		acceptAthleteInvite(token: String!): Athlete!
+		acceptAthleteInvite(
+			token: String!
+			dateOfBirth: DateTime!
+			parentEmail: String
+		): Athlete!
+		grantParentalConsent(token: String!): Athlete!
 
 		createRecorderInvite(data: CreateRecorderInviteInput!): CreateRecorderInviteResult!
 		resendRecorderInvite(team: ID!, inviteId: ID!): RecorderInvite!
