@@ -5,6 +5,7 @@ import { athletes } from '@api-core/src/resolvers/queries/athlete/athletes'
 import { athlete } from '@api-core/src/resolvers/queries/athlete/athlete'
 import { athleteInviteLink } from '@api-core/src/resolvers/queries/athlete/athleteInviteLink'
 import { athleteProgression } from '@api-core/src/resolvers/queries/athlete/athleteProgression'
+import { parentalConsentInfo } from '@api-core/src/resolvers/queries/athlete/parentalConsentInfo'
 import { videos } from '@api-core/src/resolvers/queries/video/videos'
 import { video } from '@api-core/src/resolvers/queries/video/video'
 import { notifications } from '@api-core/src/resolvers/queries/notification/notifications'
@@ -20,6 +21,7 @@ const Query = {
 	athlete,
 	athleteInviteLink,
 	athleteProgression,
+	parentalConsentInfo,
 	videos,
 	video,
 	notifications,

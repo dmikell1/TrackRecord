@@ -1,16 +1,17 @@
-import axios from 'axios'
-import { injectable, inject, singleton } from 'tsyringe'
+import { Resend } from 'resend'
+import { inject, injectable, singleton } from 'tsyringe'
 
-import ReportErrors from '@packages/services/logging/decorators/reportErrors'
+import ReportErrors, {
+	NoTrace
+} from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
-import { env } from '@packages/utils/validateEnvs'
 import { isDevelopment } from '@packages/utils/isDevelopment'
+import { env } from '@packages/utils/validateEnvs'
 
-const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send'
-
-const isSendGridConfigured = (): boolean => {
+const isResendConfigured = (): boolean => {
 	return (
-		env.SENDGRID_KEY.length > 0 && env.SENDGRID_KEY !== 'SG.SENDGRID_KEY'
+		env.RESEND_API_KEY.length > 0 &&
+		!env.RESEND_API_KEY.startsWith('re_placeholder')
 	)
 }
 
@@ -18,6 +19,8 @@ const isSendGridConfigured = (): boolean => {
 @singleton()
 @ReportErrors()
 export class EmailService {
+	private resend: Resend | null = null
+
 	constructor(
 		@inject(ReportingService)
 		private reportingService: ReportingService
@@ -36,10 +39,11 @@ export class EmailService {
 		html: string
 		replyTo?: string
 	}): Promise<void> {
-		if (!isSendGridConfigured()) {
+		if (!isResendConfigured()) {
 			if (isDevelopment) {
 				this.reportingService.log({
-					message: 'Skipping email send in development (SendGrid not configured)',
+					message:
+						'Skipping email send in development (Resend not configured)',
 					to,
 					subject
 				})
@@ -50,30 +54,21 @@ export class EmailService {
 		}
 
 		try {
-			await axios.post(
-				SENDGRID_API_URL,
-				{
-					personalizations: [{ to: [{ email: to }] }],
-					from: {
-						email: env.SENDGRID_FROM_EMAIL,
-						name: env.SENDGRID_FROM_NAME
-					},
-					...(replyTo !== undefined && {
-						reply_to: { email: replyTo }
-					}),
-					subject,
-					content: [
-						{ type: 'text/plain', value: text },
-						{ type: 'text/html', value: html }
-					]
-				},
-				{
-					headers: {
-						Authorization: `Bearer ${env.SENDGRID_KEY}`,
-						'Content-Type': 'application/json'
-					}
-				}
-			)
+			const client = this.getResendClient()
+			const from = `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`
+
+			const { error } = await client.emails.send({
+				from,
+				to: [to],
+				subject,
+				text,
+				html,
+				...(replyTo !== undefined && { replyTo })
+			})
+
+			if (error) {
+				throw new Error(error.message)
+			}
 		} catch (error) {
 			this.reportingService.error({
 				message: 'Failed to send email',
@@ -83,5 +78,14 @@ export class EmailService {
 			})
 			throw error
 		}
+	}
+
+	@NoTrace()
+	private getResendClient(): Resend {
+		if (this.resend === null) {
+			this.resend = new Resend(env.RESEND_API_KEY)
+		}
+
+		return this.resend
 	}
 }

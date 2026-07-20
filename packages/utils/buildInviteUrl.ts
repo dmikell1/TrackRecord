@@ -13,3 +13,12 @@ export const buildRecorderInviteUrl = ({
 	const baseUrl = env.TRACKRECORD_APP_URL.replace(/\/$/, '')
 	return `${baseUrl}/join/${token}`
 }
+
+export const buildParentalConsentUrl = ({
+	token
+}: {
+	token: string
+}): string => {
+	const baseUrl = env.FRONTEND_URL.replace(/\/$/, '')
+	return `${baseUrl}/parental-consent/${token}`
+}

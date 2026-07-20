@@ -1,4 +1,5 @@
 import { BulkAthleteImportIssueReason } from '@packages/enums/trackRecord'
+import { ParentalConsentStatus } from '@packages/enums/trackRecord'
 import type { AthleteInviteInterface } from '@packages/types/athleteInvite'
 
 export interface AthleteInterface {
@@ -11,6 +12,11 @@ export interface AthleteInterface {
 	email: string
 	phone: string | null
 	color: string
+	dateOfBirth: Date | null
+	parentalConsentStatus: ParentalConsentStatus
+	parentEmail: string | null
+	parentalConsentToken: string | null
+	parentalConsentAt: Date | null
 	deletedAt: Date | null
 	createdAt: Date
 	updatedAt: Date
@@ -45,4 +51,11 @@ export interface CreateAthleteResult {
 	athlete: AthleteInterface
 	invite: AthleteInviteInterface | null
 	inviteEmailSent: boolean | null
+}
+
+export interface ParentalConsentInfoInterface {
+	athleteFirstName: string
+	athleteLastName: string
+	teamName: string
+	status: ParentalConsentStatus
 }

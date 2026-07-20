@@ -4,7 +4,11 @@ import { addDays } from 'date-fns'
 import { injectable, inject, singleton } from 'tsyringe'
 
 import { UserStatus } from '@packages/enums'
-import { AthleteInviteStatus, JoinInviteKind } from '@packages/enums/trackRecord'
+import {
+	AthleteInviteStatus,
+	JoinInviteKind,
+	ParentalConsentStatus
+} from '@packages/enums/trackRecord'
 import { NotificationType } from '@packages/enums/notifications'
 import type { AthleteInviteFilter } from '@packages/repositories/athleteInvite/AthleteInviteRepository'
 import { AthleteInviteRepository } from '@packages/repositories/athleteInvite/AthleteInviteRepository'
@@ -13,14 +17,22 @@ import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { UserRepository } from '@packages/repositories/user/UserRepository'
 import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import { buildAthleteInviteEmail } from '@packages/services/email/athleteInviteEmailTemplate'
+import { buildParentalConsentEmail } from '@packages/services/email/parentalConsentEmailTemplate'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import queueService from '@packages/services/queue/QueueService'
 import { UserService } from '@packages/services/user/UserService'
-import { buildAthleteInviteUrl } from '@packages/utils/buildInviteUrl'
+import {
+	buildAthleteInviteUrl,
+	buildParentalConsentUrl
+} from '@packages/utils/buildInviteUrl'
+import { isUnderCoppaAge } from '@packages/utils/coppaAge'
 import { env } from '@packages/utils/validateEnvs'
 import type { AthleteInviteInterface } from '@packages/types/athleteInvite'
-import type { AthleteInterface } from '@packages/types/athlete'
+import type {
+	AthleteInterface,
+	ParentalConsentInfoInterface
+} from '@packages/types/athlete'
 import type { JoinInfoInterface } from '@packages/types/join'
 import type { TeamInterface } from '@packages/types/team'
 
@@ -33,6 +45,13 @@ interface AthleteSignupProfile {
 	email: string
 	avatar: string
 	termsAndConditions?: boolean
+}
+
+interface AcceptJoinInput {
+	token: string
+	userId: string
+	dateOfBirth: Date
+	parentEmail?: string
 }
 
 @injectable()
@@ -154,54 +173,76 @@ export class AthleteInviteService {
 		}
 	}
 
-	public async acceptJoin({ token, userId }: {
-		token: string
-		userId: string
-	}): Promise<AthleteInterface> {
+	public async acceptJoin({
+		token,
+		userId,
+		dateOfBirth,
+		parentEmail
+	}: AcceptJoinInput): Promise<AthleteInterface> {
+		this.assertValidDateOfBirth({ dateOfBirth })
+
 		const team = await this.teamRepository.findByInviteToken({ token })
 		if (team) {
-			return this.acceptTeamInvite({ team, userId })
+			return this.acceptTeamInvite({
+				team,
+				userId,
+				dateOfBirth,
+				parentEmail
+			})
 		}
 
-		return this.acceptAthleteInvite({ token, userId })
+		return this.acceptAthleteInvite({
+			token,
+			userId,
+			dateOfBirth,
+			parentEmail
+		})
+	}
+
+	/**
+	 * Creates the backend user for an invite signup without accepting the invite.
+	 * Acceptance requires dateOfBirth and happens via acceptJoin / acceptAthleteInvite.
+	 */
+	public async ensureUserForInviteSignup({
+		clerkId,
+		profile
+	}: {
+		clerkId: string
+		profile?: AthleteSignupProfile
+	}): Promise<string> {
+		return this.ensureUserForClerk({ clerkId, profile })
 	}
 
 	public async completeAthleteInviteSignup({
 		token,
 		clerkId,
+		dateOfBirth,
+		parentEmail,
 		profile
 	}: {
 		token: string
 		clerkId: string
+		dateOfBirth: Date
+		parentEmail?: string
 		profile?: AthleteSignupProfile
 	}): Promise<AthleteInterface> {
 		const userId = await this.ensureUserForClerk({ clerkId, profile })
-		const team = await this.teamRepository.findByInviteToken({ token })
-
-		if (team) {
-			return this.acceptTeamInvite({ team, userId })
-		}
-
-		const invite = await this.findAthleteInvite({ filter: { token } })
-		if (!invite) {
-			throw new Error('Invalid or expired invite token')
-		}
-
-		if (invite.status === AthleteInviteStatus.Accepted) {
-			return this.resolveAcceptedAthleteInvite({ invite, userId })
-		}
-
-		if (invite.status === AthleteInviteStatus.Expired) {
-			throw new Error('Invite has expired')
-		}
-
-		return this.acceptAthleteInvite({ token, userId })
+		return this.acceptJoin({
+			token,
+			userId,
+			dateOfBirth,
+			parentEmail
+		})
 	}
 
-	public async acceptAthleteInvite({ token, userId }: {
-		token: string
-		userId: string
-	}): Promise<AthleteInterface> {
+	public async acceptAthleteInvite({
+		token,
+		userId,
+		dateOfBirth,
+		parentEmail
+	}: AcceptJoinInput): Promise<AthleteInterface> {
+		this.assertValidDateOfBirth({ dateOfBirth })
+
 		const invite = await this.athleteInviteRepository.findOne({
 			filter: { token, status: AthleteInviteStatus.Pending }
 		})
@@ -237,6 +278,12 @@ export class AthleteInviteService {
 
 		await this.athleteRepository.linkUser({ id: athlete.id, userId })
 
+		const consentedAthlete = await this.applyJoinConsentFields({
+			athleteId: athlete.id,
+			dateOfBirth,
+			parentEmail
+		})
+
 		await this.teamRepository.addTeamUser({ teamId: invite.teamId, userId })
 
 		await this.athleteInviteRepository.update({
@@ -248,11 +295,114 @@ export class AthleteInviteService {
 		await this.notifyCoachOfJoin({
 			team,
 			teamId: invite.teamId,
-			athlete,
+			athlete: consentedAthlete,
 			inviteId: invite.id
 		})
 
-		return { ...athlete, userId }
+		if (consentedAthlete.parentalConsentStatus === ParentalConsentStatus.Pending) {
+			await this.queueParentalConsentEmail({ athlete: consentedAthlete, team })
+		}
+
+		return consentedAthlete
+	}
+
+	public async getParentalConsentInfo({
+		token
+	}: {
+		token: string
+	}): Promise<ParentalConsentInfoInterface | null> {
+		const athlete = await this.athleteRepository.findOne({
+			filter: { parentalConsentToken: token }
+		})
+		if (!athlete) {
+			return null
+		}
+
+		const team = await this.teamRepository.findOne({ filter: { id: athlete.teamId } })
+
+		return {
+			athleteFirstName: athlete.firstName,
+			athleteLastName: athlete.lastName,
+			teamName: team?.name ?? '',
+			status: athlete.parentalConsentStatus
+		}
+	}
+
+	public async grantParentalConsent({
+		token
+	}: {
+		token: string
+	}): Promise<AthleteInterface> {
+		const athlete = await this.athleteRepository.findOne({
+			filter: { parentalConsentToken: token }
+		})
+		if (!athlete) {
+			throw new Error('Invalid or expired consent link')
+		}
+
+		if (athlete.parentalConsentStatus === ParentalConsentStatus.Granted) {
+			return athlete
+		}
+
+		if (athlete.parentalConsentStatus !== ParentalConsentStatus.Pending) {
+			throw new Error('Parental consent is not required for this athlete')
+		}
+
+		const updated = await this.athleteRepository.update({
+			filter: { id: athlete.id },
+			data: {
+				parentalConsentStatus: ParentalConsentStatus.Granted,
+				parentalConsentAt: new Date(),
+				parentalConsentToken: null
+			}
+		})
+
+		if (!updated) {
+			throw new Error('Failed to grant parental consent')
+		}
+
+		return updated
+	}
+
+	public async resendParentalConsentEmail({
+		athleteId,
+		teamId
+	}: {
+		athleteId: string
+		teamId: string
+	}): Promise<boolean> {
+		const athlete = await this.athleteRepository.findOne({
+			filter: { id: athleteId, teamId }
+		})
+		if (!athlete) {
+			throw new Error('Athlete not found')
+		}
+		if (athlete.parentalConsentStatus !== ParentalConsentStatus.Pending) {
+			throw new Error('Parental consent is not pending for this athlete')
+		}
+		if (!athlete.parentEmail) {
+			throw new Error('Parent email is missing')
+		}
+
+		let consentToken = athlete.parentalConsentToken
+		if (!consentToken) {
+			consentToken = crypto.randomUUID()
+			await this.athleteRepository.update({
+				filter: { id: athlete.id },
+				data: { parentalConsentToken: consentToken }
+			})
+		}
+
+		const team = await this.teamRepository.findOne({ filter: { id: teamId } })
+		await this.queueParentalConsentEmail({
+			athlete: {
+				...athlete,
+				parentalConsentToken: consentToken
+			},
+			team
+		})
+
+		return true
 	}
 
 	private async ensureUserForClerk({
@@ -358,10 +508,14 @@ export class AthleteInviteService {
 
 	private async acceptTeamInvite({
 		team,
-		userId
+		userId,
+		dateOfBirth,
+		parentEmail
 	}: {
 		team: TeamInterface
 		userId: string
+		dateOfBirth: Date
+		parentEmail?: string
 	}): Promise<AthleteInterface> {
 		const user = await this.userRepository.findOneOrFail({ filter: { id: userId } })
 		const email = user.email.toLowerCase()
@@ -391,15 +545,32 @@ export class AthleteInviteService {
 				throw new Error('Failed to link athlete account')
 			}
 
+			const consentedAthlete = await this.applyJoinConsentFields({
+				athleteId: linked.id,
+				dateOfBirth,
+				parentEmail
+			})
+
 			await this.teamRepository.addTeamUser({ teamId: team.id, userId })
 			await this.notifyCoachOfJoin({
 				team,
 				teamId: team.id,
-				athlete: linked
+				athlete: consentedAthlete
 			})
 
-			return linked
+			if (consentedAthlete.parentalConsentStatus === ParentalConsentStatus.Pending) {
+				await this.queueParentalConsentEmail({ athlete: consentedAthlete, team })
+			}
+
+			return consentedAthlete
 		}
+
+		const under13 = isUnderCoppaAge({ dateOfBirth })
+		const consentFields = this.buildConsentFields({
+			dateOfBirth,
+			parentEmail,
+			under13
+		})
 
 		const athlete = await this.athleteRepository.create({
 			data: {
@@ -409,7 +580,8 @@ export class AthleteInviteService {
 				lastName: user.lastName,
 				email,
 				color: DEFAULT_ATHLETE_COLOR,
-				userId
+				userId,
+				...consentFields
 			}
 		})
 
@@ -420,7 +592,94 @@ export class AthleteInviteService {
 			athlete
 		})
 
+		if (athlete.parentalConsentStatus === ParentalConsentStatus.Pending) {
+			await this.queueParentalConsentEmail({ athlete, team })
+		}
+
 		return athlete
+	}
+
+	private assertValidDateOfBirth({ dateOfBirth }: { dateOfBirth: Date }): void {
+		if (!(dateOfBirth instanceof Date) || Number.isNaN(dateOfBirth.getTime())) {
+			throw new Error('A valid date of birth is required')
+		}
+
+		if (dateOfBirth > new Date()) {
+			throw new Error('Date of birth cannot be in the future')
+		}
+	}
+
+	private assertValidParentEmail({ parentEmail }: { parentEmail?: string }): string {
+		const normalized = parentEmail?.trim().toLowerCase() ?? ''
+		if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+			throw new Error('A valid parent or guardian email is required')
+		}
+		return normalized
+	}
+
+	private buildConsentFields({
+		dateOfBirth,
+		parentEmail,
+		under13
+	}: {
+		dateOfBirth: Date
+		parentEmail?: string
+		under13: boolean
+	}): Pick<
+		AthleteInterface,
+		| 'dateOfBirth'
+		| 'parentalConsentStatus'
+		| 'parentEmail'
+		| 'parentalConsentToken'
+		| 'parentalConsentAt'
+	> {
+		if (!under13) {
+			return {
+				dateOfBirth,
+				parentalConsentStatus: ParentalConsentStatus.NotRequired,
+				parentEmail: null,
+				parentalConsentToken: null,
+				parentalConsentAt: null
+			}
+		}
+
+		const normalizedParentEmail = this.assertValidParentEmail({ parentEmail })
+
+		return {
+			dateOfBirth,
+			parentalConsentStatus: ParentalConsentStatus.Pending,
+			parentEmail: normalizedParentEmail,
+			parentalConsentToken: crypto.randomUUID(),
+			parentalConsentAt: null
+		}
+	}
+
+	private async applyJoinConsentFields({
+		athleteId,
+		dateOfBirth,
+		parentEmail
+	}: {
+		athleteId: string
+		dateOfBirth: Date
+		parentEmail?: string
+	}): Promise<AthleteInterface> {
+		const under13 = isUnderCoppaAge({ dateOfBirth })
+		const consentFields = this.buildConsentFields({
+			dateOfBirth,
+			parentEmail,
+			under13
+		})
+
+		const updated = await this.athleteRepository.update({
+			filter: { id: athleteId },
+			data: consentFields
+		})
+
+		if (!updated) {
+			throw new Error('Failed to update athlete consent fields')
+		}
+
+		return updated
 	}
 
 	private async createAthleteInviteRecord({
@@ -554,6 +813,39 @@ export class AthleteInviteService {
 			html,
 			...(coach?.email !== undefined && { replyTo: coach.email }),
 			jobId: `athlete-invite-${invite.id}-${Date.now()}`
+		})
+	}
+
+	private async queueParentalConsentEmail({
+		athlete,
+		team
+	}: {
+		athlete: AthleteInterface
+		team: TeamInterface | null
+	}): Promise<void> {
+		if (!athlete.parentEmail || !athlete.parentalConsentToken) {
+			return
+		}
+
+		const consentUrl = buildParentalConsentUrl({
+			token: athlete.parentalConsentToken
+		})
+		const { subject, text, html } = buildParentalConsentEmail({
+			parentEmail: athlete.parentEmail,
+			athleteFirstName: athlete.firstName,
+			athleteLastName: athlete.lastName,
+			teamName: team?.name ?? 'your team',
+			consentUrl
+		})
+
+		await queueService.scheduleSendEmail({
+			to: athlete.parentEmail,
+			subject,
+			text,
+			html,
+			jobId: `parental-consent-${athlete.id}-${Date.now()}`
+		}).catch((error) => {
+			this.reportingService.reportError({ error: error as Error })
 		})
 	}
 

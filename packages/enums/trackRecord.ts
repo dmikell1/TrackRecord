@@ -91,6 +91,12 @@ export enum AthleteInviteStatus {
 	Expired = 'Expired'
 }
 
+export enum ParentalConsentStatus {
+	NotRequired = 'NotRequired',
+	Pending = 'Pending',
+	Granted = 'Granted'
+}
+
 export enum RecorderInviteStatus {
 	Pending = 'Pending',
 	Accepted = 'Accepted',

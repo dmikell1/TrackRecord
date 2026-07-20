@@ -2,6 +2,7 @@ import { mock } from 'jest-mock-extended'
 import { container } from 'tsyringe'
 
 import { NotificationType } from '@packages/enums/notifications'
+import { ParentalConsentStatus } from '@packages/enums/trackRecord'
 import { AthleteRepository } from '@packages/repositories/athlete/AthleteRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
@@ -69,6 +70,35 @@ describe('VideoCommentService', () => {
 	})
 
 	describe('createVideoComment', () => {
+		it('blocks comments when athlete parental consent is pending', async () => {
+			const athlete = buildMockAthlete({
+				teamId,
+				userId: athleteUserId,
+				parentalConsentStatus: ParentalConsentStatus.Pending
+			})
+			const video = buildMockVideo({
+				teamId,
+				athleteId: athlete.id,
+				event: 'HighJump'
+			})
+
+			mockVideoRepository.findOne.mockResolvedValue(video)
+			mockAthleteRepository.findOne.mockResolvedValue(athlete)
+
+			await expect(
+				service.createVideoComment({
+					teamId,
+					data: {
+						videoId: video.id,
+						userId: athleteUserId,
+						text: 'Hello'
+					}
+				})
+			).rejects.toThrow('Parental consent is required before commenting')
+
+			expect(mockVideoCommentRepository.create).not.toHaveBeenCalled()
+		})
+
 		it('notifies coach when athlete comments on their video', async () => {
 			const athlete = buildMockAthlete({
 				teamId,
