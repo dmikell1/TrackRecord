@@ -68,6 +68,30 @@ export class VideoCommentService {
 
 		const comment = await this.videoCommentRepository.create({ data })
 
+		// Notify in the background so the mutation returns as soon as the comment is saved.
+		void this.deliverCommentNotifications({
+			video,
+			comment,
+			team,
+			commenterUserId: data.userId
+		}).catch(error => {
+			this.reportingService.reportError({ error: error as Error })
+		})
+
+		return comment
+	}
+
+	private async deliverCommentNotifications({
+		video,
+		comment,
+		team,
+		commenterUserId
+	}: {
+		video: VideoInterface
+		comment: VideoCommentInterface
+		team: TeamInterface
+		commenterUserId: string
+	}): Promise<void> {
 		const athletes = await this.resolveVideoAthletes({
 			video,
 			teamId: video.teamId
@@ -78,10 +102,8 @@ export class VideoCommentService {
 			comment,
 			athletes,
 			team,
-			commenterUserId: data.userId
+			commenterUserId
 		})
-
-		return comment
 	}
 
 	private async resolveVideoAthletes({

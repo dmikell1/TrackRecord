@@ -4,7 +4,8 @@ import { UserRoles } from '@packages/enums/user'
 import {
 	type SessionRoleEntry,
 	userHasCoachAccessForTeam,
-	userHasOneOfRoles
+	userHasOneOfRoles,
+	userHasRecorderRole
 } from '@packages/utils/sessionRoleAuth'
 
 interface SessionUser {
@@ -153,6 +154,20 @@ const withCoachRoleForTeam = rule({ cache: 'contextual' })(
 
 const withCoachAccess = and(withTeamAccess, withCoachRoleForTeam)
 
+/** Team members may access, except recorder helpers. */
+const withoutRecorderRole = rule({ cache: 'contextual' })(
+	async (
+		_parent: unknown,
+		_args: unknown,
+		ctx: SessionContext
+	): Promise<boolean> =>
+		!userHasRecorderRole({
+			roles: ctx.req.session.user?.roles
+		})
+)
+
+const withTeamAccessExceptRecorder = and(withTeamAccess, withoutRecorderRole)
+
 const withAdminAccess = and(
 	isAuthenticated,
 	rule({ cache: 'contextual' })(
@@ -203,6 +218,7 @@ export const authorizationRules = {
 	isClerkOrAppAuthenticated,
 	withPublicAccess,
 	withTeamAccess,
+	withTeamAccessExceptRecorder,
 	withCompanyAccess,
 	withManagerAccess,
 	withCoachAccess,

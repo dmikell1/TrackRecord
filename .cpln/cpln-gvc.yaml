@@ -30,6 +30,16 @@ spec:
       value: cpln://secret/trackrecord-env-vars.CLOUDFLARE_R2_SECRET_ACCESS_KEY
     - name: CLOUDFLARE_R2_PUBLIC_URL
       value: cpln://secret/trackrecord-env-vars.CLOUDFLARE_R2_PUBLIC_URL
+    - name: RESEND_API_KEY
+      value: cpln://secret/trackrecord-resend.RESEND_API_KEY
+    - name: RESEND_FROM_EMAIL
+      value: cpln://secret/trackrecord-resend.RESEND_FROM_EMAIL
+    - name: RESEND_FROM_NAME
+      value: cpln://secret/trackrecord-resend.RESEND_FROM_NAME
+    - name: TRACKRECORD_APP_URL
+      value: cpln://secret/trackrecord-resend.TRACKRECORD_APP_URL
+    - name: FRONTEND_URL
+      value: cpln://secret/trackrecord-resend.FRONTEND_URL
     - name: POSTGRES_URL
       value: cpln://secret/trackrecord-env-vars.POSTGRES_URL
     - name: POSTGRES_USER

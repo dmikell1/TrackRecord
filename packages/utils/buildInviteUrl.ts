@@ -19,6 +19,7 @@ export const buildParentalConsentUrl = ({
 }: {
 	token: string
 }): string => {
-	const baseUrl = env.FRONTEND_URL.replace(/\/$/, '')
+	// Same public host as /join — marketing site serves /parental-consent/[token]
+	const baseUrl = env.TRACKRECORD_APP_URL.replace(/\/$/, '')
 	return `${baseUrl}/parental-consent/${token}`
 }

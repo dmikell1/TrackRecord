@@ -730,6 +730,128 @@ describe('AthleteInviteService', () => {
 		})
 	})
 
+	describe('resendParentalConsentEmail', () => {
+		it('queues a new parental consent email for the linked athlete', async () => {
+			const athlete = buildMockAthlete({
+				id: 'athlete-1',
+				teamId: 'team-1',
+				userId: 'user-1',
+				parentalConsentStatus: ParentalConsentStatus.Pending,
+				parentEmail: 'parent@example.com',
+				parentalConsentToken: 'consent-token-1'
+			})
+
+			mockAthleteRepository.findOne.mockResolvedValue(athlete)
+			mockTeamRepository.findOne.mockResolvedValue({
+				id: 'team-1',
+				name: 'Track Team',
+				ownerId: 'coach-1',
+				companyId: 'company-1',
+				settings: {},
+				createdAt: new Date(),
+				updatedAt: new Date()
+			})
+
+			const result = await service.resendParentalConsentEmail({
+				athleteId: 'athlete-1',
+				teamId: 'team-1',
+				userId: 'user-1'
+			})
+
+			expect(result).toBe(true)
+			expect(mockQueueService.scheduleSendEmail).toHaveBeenCalledWith(
+				expect.objectContaining({
+					to: 'parent@example.com'
+				})
+			)
+		})
+
+		it('regenerates a missing consent token before sending', async () => {
+			const athlete = buildMockAthlete({
+				id: 'athlete-1',
+				teamId: 'team-1',
+				userId: 'user-1',
+				parentalConsentStatus: ParentalConsentStatus.Pending,
+				parentEmail: 'parent@example.com',
+				parentalConsentToken: null
+			})
+
+			mockAthleteRepository.findOne.mockResolvedValue(athlete)
+			mockAthleteRepository.update.mockResolvedValue({
+				...athlete,
+				parentalConsentToken: 'new-token'
+			})
+			mockTeamRepository.findOne.mockResolvedValue({
+				id: 'team-1',
+				name: 'Track Team',
+				ownerId: 'coach-1',
+				companyId: 'company-1',
+				settings: {},
+				createdAt: new Date(),
+				updatedAt: new Date()
+			})
+
+			await service.resendParentalConsentEmail({
+				athleteId: 'athlete-1',
+				teamId: 'team-1',
+				userId: 'user-1'
+			})
+
+			expect(mockAthleteRepository.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					filter: { id: 'athlete-1' },
+					data: expect.objectContaining({
+						parentalConsentToken: expect.any(String)
+					})
+				})
+			)
+			expect(mockQueueService.scheduleSendEmail).toHaveBeenCalledTimes(1)
+		})
+
+		it('throws when another user tries to resend', async () => {
+			mockAthleteRepository.findOne.mockResolvedValue(
+				buildMockAthlete({
+					id: 'athlete-1',
+					teamId: 'team-1',
+					userId: 'user-1',
+					parentalConsentStatus: ParentalConsentStatus.Pending,
+					parentEmail: 'parent@example.com',
+					parentalConsentToken: 'consent-token-1'
+				})
+			)
+
+			await expect(
+				service.resendParentalConsentEmail({
+					athleteId: 'athlete-1',
+					teamId: 'team-1',
+					userId: 'other-user'
+				})
+			).rejects.toThrow(
+				'Only the athlete can resend their parental consent email'
+			)
+		})
+
+		it('throws when parental consent is not pending', async () => {
+			mockAthleteRepository.findOne.mockResolvedValue(
+				buildMockAthlete({
+					id: 'athlete-1',
+					teamId: 'team-1',
+					userId: 'user-1',
+					parentalConsentStatus: ParentalConsentStatus.Granted,
+					parentEmail: 'parent@example.com'
+				})
+			)
+
+			await expect(
+				service.resendParentalConsentEmail({
+					athleteId: 'athlete-1',
+					teamId: 'team-1',
+					userId: 'user-1'
+				})
+			).rejects.toThrow('Parental consent is not pending for this athlete')
+		})
+	})
+
 	describe('completeAthleteInviteSignup', () => {
 
 		it('creates backend user from profile and accepts a pending invite', async () => {

@@ -366,16 +366,23 @@ export class AthleteInviteService {
 
 	public async resendParentalConsentEmail({
 		athleteId,
-		teamId
+		teamId,
+		userId
 	}: {
 		athleteId: string
 		teamId: string
+		userId: string
 	}): Promise<boolean> {
 		const athlete = await this.athleteRepository.findOne({
 			filter: { id: athleteId, teamId }
 		})
 		if (!athlete) {
 			throw new Error('Athlete not found')
+		}
+		if (athlete.userId !== userId) {
+			throw new Error(
+				'Only the athlete can resend their parental consent email'
+			)
 		}
 		if (athlete.parentalConsentStatus !== ParentalConsentStatus.Pending) {
 			throw new Error('Parental consent is not pending for this athlete')

@@ -22,7 +22,7 @@ const envSchema = z
 		RESEND_API_KEY: z.string().default(''),
 		RESEND_FROM_EMAIL: z.string().default('invites@trackrecord.app'),
 		RESEND_FROM_NAME: z.string().default('TrackRecord'),
-		TRACKRECORD_APP_URL: z.string().default('https://trackrecord.app'),
+		TRACKRECORD_APP_URL: z.string().default('https://trackrecordhq.com'),
 		// POSTGRES (Drizzle)
 		DATABASE_URL: z
 			.string()
@@ -105,5 +105,17 @@ if (
 	// eslint-disable-next-line no-console -- boot-time ops warning before logger is ready
 	console.warn(
 		'[env] REVENUECAT_WEBHOOK_SECRET is empty in production. Set it in Control Plane and match RevenueCat webhook Authorization: Bearer <secret>.'
+	)
+}
+
+if (
+	env.ENVIRONMENT_NAME !== 'local' &&
+	env.ENVIRONMENT_NAME !== 'testing' &&
+	(env.RESEND_API_KEY.trim().length === 0 ||
+		env.RESEND_API_KEY.startsWith('re_placeholder'))
+) {
+	// eslint-disable-next-line no-console -- boot-time ops warning before logger is ready
+	console.warn(
+		'[env] RESEND_API_KEY is empty. Athlete/recorder invite and parental consent emails will fail until it is set in Control Plane (trackrecord-env-vars).'
 	)
 }
