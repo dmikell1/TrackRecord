@@ -515,6 +515,7 @@ export const TrackRecord = gql`
 			parentEmail: String
 		): Athlete!
 		grantParentalConsent(token: String!): Athlete!
+		resendParentalConsentEmail(team: ID!, athleteId: ID!): Boolean!
 
 		createRecorderInvite(data: CreateRecorderInviteInput!): CreateRecorderInviteResult!
 		resendRecorderInvite(team: ID!, inviteId: ID!): RecorderInvite!

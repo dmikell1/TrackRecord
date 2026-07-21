@@ -17,6 +17,18 @@ import { buildMockAthlete } from '@builders/athlete'
 import { buildMockTeam } from '@builders/team'
 import { buildMockVideo } from '@builders/video'
 
+const flushBackgroundWork = async (): Promise<void> => {
+	await new Promise<void>(resolve => {
+		setImmediate(resolve)
+	})
+	await new Promise<void>(resolve => {
+		setImmediate(resolve)
+	})
+	await new Promise<void>(resolve => {
+		setImmediate(resolve)
+	})
+}
+
 describe('VideoCommentService', () => {
 	let service: VideoCommentService
 	let mockVideoCommentRepository: jest.Mocked<VideoCommentRepository>
@@ -152,6 +164,7 @@ describe('VideoCommentService', () => {
 				},
 				teamId
 			})
+			await flushBackgroundWork()
 
 			expect(mockNotificationRepository.create).toHaveBeenCalledWith({
 				data: expect.objectContaining({
@@ -224,6 +237,7 @@ describe('VideoCommentService', () => {
 				},
 				teamId
 			})
+			await flushBackgroundWork()
 
 			expect(mockNotificationRepository.create).toHaveBeenCalledWith({
 				data: expect.objectContaining({
@@ -308,6 +322,7 @@ describe('VideoCommentService', () => {
 				},
 				teamId
 			})
+			await flushBackgroundWork()
 
 			expect(mockVideoPerformanceRepository.find).toHaveBeenCalledWith({
 				filter: { videoId: video.id, teamId }
@@ -357,6 +372,7 @@ describe('VideoCommentService', () => {
 				},
 				teamId
 			})
+			await flushBackgroundWork()
 
 			expect(mockNotificationRepository.create).not.toHaveBeenCalled()
 		})

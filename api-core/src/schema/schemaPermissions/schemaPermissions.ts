@@ -39,6 +39,7 @@ export const permissions = {
 		resendAthleteInvite: authorizationRules.withCoachAccess,
 		acceptAthleteInvite: authorizationRules.isClerkOrAppAuthenticated,
 		grantParentalConsent: authorizationRules.withPublicAccess,
+		resendParentalConsentEmail: authorizationRules.withTeamAccess,
 		createRecorderInvite: authorizationRules.withCoachAccess,
 		resendRecorderInvite: authorizationRules.withCoachAccess,
 		acceptRecorderInvite: authorizationRules.isClerkOrAppAuthenticated,
@@ -51,8 +52,8 @@ export const permissions = {
 		updateVideoPerformances: authorizationRules.withCoachAccess,
 		deleteVideo: authorizationRules.withTeamAccess,
 		moveVideos: authorizationRules.withCoachAccess,
-		// Comments
-		createVideoComment: authorizationRules.withTeamAccess,
+		// Comments (coaches + athletes; not recorder helpers)
+		createVideoComment: authorizationRules.withTeamAccessExceptRecorder,
 		// Notifications
 		markNotificationsRead: authorizationRules.withTeamAccess,
 		markAllNotificationsRead: authorizationRules.withTeamAccess,

@@ -19,6 +19,16 @@ export const userHasOneOfRoles = ({
 		allowedRoles.includes(resolveSessionRole({ entry }))
 	) === true
 
+export const userHasRecorderRole = ({
+	roles
+}: {
+	roles?: SessionRoleEntry[]
+}): boolean =>
+	userHasOneOfRoles({
+		roles,
+		allowedRoles: [UserRoles.Recorder]
+	})
+
 const COACH_ROLES: UserRoles[] = [
 	UserRoles.Owner,
 	UserRoles.Admin,

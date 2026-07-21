@@ -1,7 +1,8 @@
 import { UserRoles } from '@packages/enums/user'
 import {
 	userHasCoachAccessForTeam,
-	userHasOneOfRoles
+	userHasOneOfRoles,
+	userHasRecorderRole
 } from '@packages/utils/sessionRoleAuth'
 
 describe('sessionRoleAuth', () => {
@@ -40,6 +41,29 @@ describe('sessionRoleAuth', () => {
 			})
 
 			expect(allowed).toBe(false)
+		})
+	})
+
+	describe('userHasRecorderRole', () => {
+		it('should return true for recorder helpers', () => {
+			expect(
+				userHasRecorderRole({
+					roles: [{ role: UserRoles.Recorder }]
+				})
+			).toBe(true)
+		})
+
+		it('should return false for coaches and athletes', () => {
+			expect(
+				userHasRecorderRole({
+					roles: [{ role: UserRoles.Owner }]
+				})
+			).toBe(false)
+			expect(
+				userHasRecorderRole({
+					roles: [{ role: UserRoles.User }]
+				})
+			).toBe(false)
 		})
 	})
 

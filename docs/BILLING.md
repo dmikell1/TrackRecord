@@ -42,6 +42,31 @@ Configure the same bearer value in the RevenueCat dashboard webhook settings.
 
 **Note:** RevenueCat Test Store often does **not** report `TRIAL`. Use Apple Sandbox (or `pnpm billing:test set --state=trial`) to verify trial UI.
 
+## Offer codes (complimentary / beta access)
+
+Use **Apple subscription offer codes** to grant free or discounted plans (e.g. yourself, beta coaches). No custom “comp” API is required — redemption creates a real StoreKit transaction that RevenueCat syncs like any purchase.
+
+### Setup (App Store Connect)
+
+1. Create offer codes for Core / Pro / Elite products (one-time codes and/or custom codes + redemption URLs).
+2. Product IDs must still contain `core`, `pro`, or `elite` so the API can parse the plan.
+3. Codes redeem against the user’s **Apple ID**. The TrackRecord company **owner** must be signed into that Apple ID on the device.
+
+### How users redeem
+
+| Path | Notes |
+|------|--------|
+| In-app **Have a code?** on the paywall | Calls `Purchases.presentCodeRedemptionSheet()` (iOS only), then syncs to the API |
+| Apple redemption URL | Opens App Store → redeem → open TrackRecord + sign in |
+| Settings → App Store → Redeem | Same as URL flow |
+
+After redeem, the app polls CustomerInfo, calls `syncCompanySubscription`, and shows **Confirming your access…** until `company.subscription` is writable. If they redeemed before first login, opening the paywall runs a quiet confirm, or they can tap **Restore Purchases**.
+
+### Docs
+
+- [RevenueCat: iOS subscription offer codes](https://www.revenuecat.com/docs/subscription-guidance/subscription-offers/ios-subscription-offers#offer-codes)
+- [Apple: Offer codes](https://developer.apple.com/help/app-store-connect/manage-subscriptions/set-up-offer-codes)
+
 ## Local / fake testing (no Apple)
 
 ```bash
@@ -65,3 +90,5 @@ Reload the mobile app after DB changes so GraphQL refetches `company.subscriptio
 - [ ] Live Terms / Privacy at trackrecord.app
 - [ ] Apple Sandbox trial E2E (`status: trial` after purchase) — Test Store cannot prove this
 - [ ] Sandbox matrix in `trackrecord-mobile/QA_MATRIX.md` signed off
+- [ ] ASC offer codes created for beta / complimentary access (optional)
+- [ ] Sandbox: redeem offer code via **Have a code?** → `subscription.status` active/trial

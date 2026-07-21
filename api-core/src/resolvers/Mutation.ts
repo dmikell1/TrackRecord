@@ -10,6 +10,7 @@ import { acceptAthleteInvite } from '@api-core/src/resolvers/mutations/athlete/a
 import { sendAthleteInviteEmail } from '@api-core/src/resolvers/mutations/athlete/sendAthleteInviteEmail'
 import { resendAthleteInvite } from '@api-core/src/resolvers/mutations/athlete/resendAthleteInvite'
 import { grantParentalConsent } from '@api-core/src/resolvers/mutations/athlete/grantParentalConsent'
+import { resendParentalConsentEmail } from '@api-core/src/resolvers/mutations/athlete/resendParentalConsentEmail'
 import { acceptRecorderInvite } from '@api-core/src/resolvers/mutations/recorder/acceptRecorderInvite'
 import { cancelRecorderInvite } from '@api-core/src/resolvers/mutations/recorder/cancelRecorderInvite'
 import { createRecorderInvite } from '@api-core/src/resolvers/mutations/recorder/createRecorderInvite'
@@ -45,6 +46,7 @@ const Mutation = {
 	sendAthleteInviteEmail,
 	resendAthleteInvite,
 	grantParentalConsent,
+	resendParentalConsentEmail,
 	createRecorderInvite,
 	resendRecorderInvite,
 	acceptRecorderInvite,

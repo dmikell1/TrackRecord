@@ -1,11 +1,11 @@
-const escapeHtml = ({ value }: { value: string }): string => {
-	return value
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;')
-}
+import {
+	EMAIL_BRAND,
+	buildEmailCtaButton,
+	buildEmailFallbackLink,
+	buildEmailHead,
+	buildEmailWordmarkRow,
+	escapeHtml
+} from '@packages/services/email/emailBrand'
 
 export const buildRecorderInviteEmail = ({
 	teamName,
@@ -22,7 +22,6 @@ export const buildRecorderInviteEmail = ({
 
 	const safeCoachName = escapeHtml({ value: coachName })
 	const safeTeamName = escapeHtml({ value: teamName })
-	const safeInviteUrl = escapeHtml({ value: inviteUrl })
 
 	const text = `Hi,
 
@@ -40,88 +39,62 @@ This invite link expires in ${expiresInDays} days.
 See you on the track,
 The TrackRecord Team`
 
+	const { cream, white, cardBorder, black, mutedText, footerText } =
+		EMAIL_BRAND
+
 	const html = `<!DOCTYPE html>
 <html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark">
-<title>You're invited as a recorder helper on TrackRecord</title>
-<!--[if mso]>
-<style>
-  table {border-collapse:collapse;}
-  .fallback-font { font-family: Arial, sans-serif !important; }
-</style>
-<![endif]-->
+${buildEmailHead({ title: "You're invited as a recorder helper on TrackRecord" })}
 </head>
-<body style="margin:0; padding:0; background-color:#F4F2EA; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
-  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#F4F2EA;">
+<body class="email-body" style="margin:0; padding:0; background-color:${cream}; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:${cream};">
     ${safeCoachName} invited you to help record for ${safeTeamName} on TrackRecord. Accept below to get started.
   </div>
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;</div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F2EA;">
+  <table role="presentation" class="email-outer" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${cream};">
     <tr>
       <td align="center" style="padding:32px 16px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#ffffff; border:1px solid #E4E1D6; border-radius:8px; overflow:hidden;">
+        <table role="presentation" class="email-card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:${white}; border:1px solid ${cardBorder}; border-radius:8px; overflow:hidden;">
+
+          ${buildEmailWordmarkRow()}
 
           <tr>
-            <td align="left" bgcolor="#0D0D0D" style="padding:22px 40px;">
-              <span style="font-family:Arial, Helvetica, sans-serif; font-size:20px; font-weight:700; letter-spacing:0.5px; color:#FFFFFF;">TRACK<span style="color:#7A7A7A;">/</span><span style="color:#D7F229;">RECORD</span></span>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:32px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#0D0D0D;">
+            <td class="email-text" style="padding:32px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:${black};">
               Hi,
             </td>
           </tr>
 
           <tr>
-            <td style="padding:16px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#0D0D0D;">
+            <td class="email-text" style="padding:16px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:${black};">
               <strong>${safeCoachName}</strong> has invited you to help out with <strong>${safeTeamName}</strong> on TrackRecord as a recorder helper.
             </td>
           </tr>
           <tr>
-            <td style="padding:16px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#0D0D0D;">
+            <td class="email-text" style="padding:16px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:${black};">
               As a recorder helper, you can capture and upload videos during practices and meets, and view team sessions and athletes.
             </td>
           </tr>
 
-          <tr>
-            <td align="left" style="padding:28px 40px 0 40px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td align="center" bgcolor="#D7F229" style="border-radius:999px;">
-                    <a href="${safeInviteUrl}" target="_blank" style="display:block; padding:14px 30px; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:700; color:#0D0D0D; text-decoration:none; border-radius:999px;">Join as recorder</a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+          ${buildEmailCtaButton({ href: inviteUrl, label: 'Join as recorder' })}
+
+          ${buildEmailFallbackLink({ href: inviteUrl })}
 
           <tr>
-            <td style="padding:20px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:20px; color:#6B6B62;">
-              If the button doesn't work, copy and paste this link into your browser:<br>
-              <a href="${safeInviteUrl}" target="_blank" style="color:#4A5A1E; text-decoration:underline; word-break:break-all;">${safeInviteUrl}</a>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:20px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:20px; color:#6B6B62;">
+            <td class="email-muted" style="padding:20px 40px 0 40px; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:20px; color:${mutedText};">
               This invite link expires in ${expiresInDays} days.
             </td>
           </tr>
 
           <tr>
             <td style="padding:28px 40px 0 40px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #E4E1D6; font-size:0; line-height:0;">&nbsp;</td></tr></table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="email-divider" style="border-top:1px solid ${cardBorder}; font-size:0; line-height:0;">&nbsp;</td></tr></table>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:20px 40px 32px 40px; font-family:Arial, Helvetica, sans-serif; font-size:14px; line-height:22px; color:#0D0D0D;">
+            <td class="email-text" style="padding:20px 40px 32px 40px; font-family:Arial, Helvetica, sans-serif; font-size:14px; line-height:22px; color:${black};">
               See you on the track,<br>
               The TrackRecord Team
             </td>
@@ -131,7 +104,7 @@ The TrackRecord Team`
 
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
           <tr>
-            <td align="center" style="padding:20px 40px; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:18px; color:#9A9A90;">
+            <td align="center" class="email-footer" style="padding:20px 40px; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:18px; color:${footerText};">
               You're receiving this email because ${safeCoachName} invited you to a team on TrackRecord.<br>
               TrackRecord, Inc.
             </td>
