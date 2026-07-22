@@ -13,6 +13,8 @@ import { env } from '@packages/utils/validateEnvs'
 
 type SessionRequest = IncomingMessage & {
 	session: S
+	authClerkId?: string
+	authUserId?: string
 }
 
 interface S extends Session {
@@ -34,29 +36,6 @@ const readHeader = ({
 		return undefined
 	}
 	return Array.isArray(raw) ? raw[0] : raw
-}
-
-const decodeJwtPayload = ({
-	token
-}: {
-	token: string
-}): { iss?: string; azp?: string; sub?: string } | null => {
-	const parts = token.split('.')
-	if (parts.length !== 3) {
-		return null
-	}
-
-	try {
-		const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-		const padded = base64.padEnd(
-			base64.length + ((4 - (base64.length % 4)) % 4),
-			'='
-		)
-		const json = Buffer.from(padded, 'base64').toString('utf8')
-		return JSON.parse(json) as { iss?: string; azp?: string; sub?: string }
-	} catch {
-		return null
-	}
 }
 
 export const setUserIdFromToken = async (
@@ -94,27 +73,19 @@ export const setUserIdFromToken = async (
 		return
 	}
 
-	const headerAzp = readHeader({ req, name: 'azp' })
-	const tokenPayload = decodeJwtPayload({ token })
-	const azp = headerAzp ?? tokenPayload?.azp
-
 	try {
-		const verifyOptions: {
-			secretKey: string
-			authorizedParties?: string[]
-		} = {
+		// Do not pass authorizedParties from the token's own azp — that is redundant
+		// and can fail for native clients when azp is missing or header-mismatched.
+		const payload = await verifyToken(token, {
 			secretKey: env.CLERK_SECRET_KEY
-		}
-
-		if (azp) {
-			verifyOptions.authorizedParties = [azp]
-		}
-
-		const payload = await verifyToken(token, verifyOptions)
+		})
 
 		const { sub, email_verified: emailVerified } = payload
 
 		if (sub) {
+			// Prefer req-level fields: express-session may not reliably expose
+			// custom properties to graphql-shield on the same request.
+			req.authClerkId = sub
 			req.session.clerkId = sub
 		}
 
@@ -140,13 +111,17 @@ export const setUserIdFromToken = async (
 		}
 
 		if (user) {
+			req.authUserId = user.id
 			req.session.userId = user.id
 			req.session.user = user
 			req.session.emailVerified = emailVerified === true
 		}
 	} catch (e) {
 		reportingService.reportError({ error: e as Error })
+		req.authClerkId = undefined
+		req.authUserId = undefined
 		req.session.userId = ''
+		req.session.clerkId = undefined
 	}
 
 	next()

@@ -15,6 +15,9 @@ import type { UserInterface } from '@packages/types/user'
 
 export interface Context {
 	req: {
+		/** Set by setUserIdFromToken — preferred over session for Bearer auth. */
+		authClerkId?: string
+		authUserId?: string
 		session: {
 			userId: string
 			user: UserInterface

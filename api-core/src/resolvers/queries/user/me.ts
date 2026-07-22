@@ -10,16 +10,18 @@ export const me = async (
 ): Promise<UserInterface | undefined> => {
 	reportingService.startTrace({ op: 'me', name: 'me' })
 	try {
-		let userId = req.session.userId
+		let userId = req.authUserId || req.session.userId
+		const clerkId = req.authClerkId || req.session.clerkId
 
-		if (!userId && req.session.clerkId) {
+		if (!userId && clerkId) {
 			const coachSignupService = container.resolve(CoachSignupService)
 			const provisionedUser =
 				await coachSignupService.provisionFromClerkIdIfMissing({
-					clerkId: req.session.clerkId
+					clerkId
 				})
 
 			if (provisionedUser) {
+				req.authUserId = provisionedUser.id
 				req.session.userId = provisionedUser.id
 				req.session.user = provisionedUser
 				userId = provisionedUser.id
