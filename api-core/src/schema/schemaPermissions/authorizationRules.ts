@@ -19,9 +19,6 @@ interface SessionContext {
 	req: {
 		authClerkId?: string
 		authUserId?: string
-		headers?: {
-			authorization?: string | string[]
-		}
 		session: {
 			userId: string
 			clerkId?: string
@@ -68,33 +65,11 @@ const isClerkOrAppAuthenticated = rule({ cache: 'no_cache' })(
 		_parent: unknown,
 		_args: unknown,
 		ctx: SessionContext
-	): Promise<boolean> => {
-		const hasAuth =
-			!!ctx.req?.authUserId ||
-			!!ctx.req?.session?.userId ||
-			!!ctx.req?.authClerkId ||
-			!!ctx.req?.session?.clerkId
-
-		if (hasAuth) {
-			return true
-		}
-
-		const authorizationHeader = ctx.req?.headers?.authorization
-		const hasAuthorization = Array.isArray(authorizationHeader)
-			? authorizationHeader.length > 0
-			: !!authorizationHeader
-		throw new Error(
-			[
-				'auth_debug',
-				`hasReq=${String(!!ctx.req)}`,
-				`hasSession=${String(!!ctx.req?.session)}`,
-				`hasAuthorization=${String(hasAuthorization)}`,
-				`authClerkId=${ctx.req?.authClerkId ? 'set' : 'missing'}`,
-				`sessionClerkId=${ctx.req?.session?.clerkId ? 'set' : 'missing'}`,
-				`sessionUserId=${ctx.req?.session?.userId ? 'set' : 'missing'}`
-			].join(' ')
-		)
-	}
+	): Promise<boolean> =>
+		!!ctx.req?.authUserId ||
+		!!ctx.req?.session?.userId ||
+		!!ctx.req?.authClerkId ||
+		!!ctx.req?.session?.clerkId
 )
 
 const withTeamAccess = and(
