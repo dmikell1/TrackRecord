@@ -17,6 +17,8 @@ interface SessionUser {
 
 interface SessionContext {
 	req: {
+		authClerkId?: string
+		authUserId?: string
 		session: {
 			userId: string
 			clerkId?: string
@@ -45,7 +47,8 @@ export const userExistsOnContext = ({
 	ctx
 }: {
 	ctx: SessionContext
-}): boolean => !!ctx.req.session.userId
+}): boolean =>
+	!!ctx.req.authUserId || !!ctx.req.session.userId
 
 const withPublicAccess = rule()(() => true)
 
@@ -54,7 +57,7 @@ const isAuthenticated = rule()(
 		_parent: unknown,
 		_args: unknown,
 		ctx: SessionContext
-	): Promise<boolean> => !!ctx.req.session.userId
+	): Promise<boolean> => !!ctx.req.authUserId || !!ctx.req.session.userId
 )
 
 const isClerkOrAppAuthenticated = rule()(
@@ -63,7 +66,10 @@ const isClerkOrAppAuthenticated = rule()(
 		_args: unknown,
 		ctx: SessionContext
 	): Promise<boolean> =>
-		!!ctx.req.session.userId || !!ctx.req.session.clerkId
+		!!ctx.req.authUserId ||
+		!!ctx.req.session.userId ||
+		!!ctx.req.authClerkId ||
+		!!ctx.req.session.clerkId
 )
 
 const withTeamAccess = and(
@@ -137,7 +143,8 @@ const withCoachRoleForTeam = rule({ cache: 'contextual' })(
 			return false
 		}
 
-		const { userId, user } = ctx.req.session
+		const { userId: sessionUserId, user } = ctx.req.session
+		const userId = ctx.req.authUserId || sessionUserId
 		if (!userId) {
 			return false
 		}
@@ -209,7 +216,8 @@ const isSelf = and(
 			_parent: unknown,
 			{ userId }: { userId: string },
 			ctx: SessionContext
-		): Promise<boolean> => ctx.req.session.userId === userId
+		): Promise<boolean> =>
+			(ctx.req.authUserId || ctx.req.session.userId) === userId
 	)
 )
 
