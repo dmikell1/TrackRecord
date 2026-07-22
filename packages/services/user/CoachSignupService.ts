@@ -122,6 +122,30 @@ export class CoachSignupService {
 			throw new Error('Clerk account has no email address')
 		}
 
+		// Live vs test Clerk (or re-signup): same email may already exist under
+		// a different clerkId. Relink instead of failing on unique email.
+		const existingByEmail = await this.userService.findUser({
+			filter: { email: email.toLowerCase() }
+		})
+
+		if (existingByEmail) {
+			await this.userService.updateUser({
+				filter: { id: existingByEmail.id },
+				data: {
+					clerkId,
+					firstName: firstName ?? existingByEmail.firstName,
+					lastName: lastName ?? existingByEmail.lastName,
+					avatar: avatarUrl || existingByEmail.avatar,
+					status: UserStatus.Active
+				}
+			})
+
+			this.reportingService.log({
+				message: `Linked existing user ${existingByEmail.id} to clerkId`
+			})
+			return
+		}
+
 		const user = await this.userService.createUser({
 			userData: {
 				firstName: firstName ?? '',
