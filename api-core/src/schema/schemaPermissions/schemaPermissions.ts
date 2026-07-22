@@ -70,5 +70,6 @@ export const permissions = {
 // https://github.com/maticzav/graphql-shield
 export const schemaPermissions = shield(permissions, {
 	debug: isDevelopment,
+	allowExternalErrors: true,
 	fallbackError: new Error(`You don't have permission to perform this action.`)
 })

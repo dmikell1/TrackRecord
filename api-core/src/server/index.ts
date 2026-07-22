@@ -121,7 +121,13 @@ export const startApolloServer = async (): Promise<void> => {
 	app.use(requestTracingMiddleware)
 	app.use(sessionMiddleware)
 	app.use(fileUpload)
-	app.use(setUserIdFromToken)
+	app.use((req, res, next) => {
+		void setUserIdFromToken(
+			req as Parameters<typeof setUserIdFromToken>[0],
+			res,
+			next
+		).catch(next)
+	})
 
 	app.use('/clerk', clerkRouter)
 	app.use('/billing/revenuecat', revenueCatRouter)
