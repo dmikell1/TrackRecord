@@ -32,7 +32,12 @@ import { ReportingService } from '@packages/services/logging/ReportingService'
 import QueueService from '@packages/services/queue/QueueService'
 import type { CoachLifecycleEmailJobInterface } from '@packages/types/coachLifecycleEmailJob'
 import type { UserInterface } from '@packages/types/user'
-import { env } from '@packages/utils/validateEnvs'
+import {
+	APPLE_SUBSCRIPTIONS_URL,
+	buildCoachAthletesDeepLink,
+	buildCoachHomeDeepLink,
+	buildCoachSettingsDeepLink
+} from '@packages/utils/buildCoachAppDeepLink'
 
 @injectable()
 @singleton()
@@ -70,7 +75,7 @@ export class CoachLifecycleEmailService {
 		teamId: string
 	}): Promise<void> {
 		const now = new Date()
-		const appUrl = this.getAppUrl()
+		const appUrl = buildCoachHomeDeepLink()
 
 		const welcome = buildCoachWelcomeEmail({
 			firstName: user.firstName,
@@ -258,7 +263,9 @@ export class CoachLifecycleEmailService {
 			return
 		}
 
-		const appUrl = this.getAppUrl()
+		const appUrl = buildCoachHomeDeepLink()
+		const athletesUrl = buildCoachAthletesDeepLink()
+		const settingsUrl = buildCoachSettingsDeepLink()
 
 		if (job.step === CoachLifecycleEmailStep.Welcome) {
 			// Welcome is sent at enroll time; leftover pending rows are marked sent.
@@ -281,7 +288,7 @@ export class CoachLifecycleEmailService {
 
 			const content = buildCoachActivationNudgeEmail({
 				firstName: user.firstName,
-				appUrl
+				appUrl: athletesUrl
 			})
 			await this.sendAndMark({
 				jobId: job.id,
@@ -352,7 +359,7 @@ export class CoachLifecycleEmailService {
 				firstName: user.firstName,
 				trialEndDate,
 				planName,
-				billingUrl: appUrl
+				billingUrl: settingsUrl
 			})
 			await this.sendAndMark({
 				jobId: job.id,
@@ -412,7 +419,7 @@ export class CoachLifecycleEmailService {
 			planName: this.formatPlanName({
 				plan: plan ?? company.subscriptionPlan ?? null
 			}),
-			appUrl: this.getAppUrl()
+			appUrl: buildCoachHomeDeepLink()
 		})
 
 		await QueueService.scheduleSendEmail({
@@ -470,7 +477,7 @@ export class CoachLifecycleEmailService {
 
 		const content = buildCoachTrialNotConvertedEmail({
 			firstName: user.firstName,
-			billingUrl: this.getAppUrl()
+			billingUrl: APPLE_SUBSCRIPTIONS_URL
 		})
 
 		await QueueService.scheduleSendEmail({
@@ -547,11 +554,6 @@ export class CoachLifecycleEmailService {
 			limit: 1
 		})
 		return teams[0] ?? null
-	}
-
-	@NoTrace()
-	private getAppUrl(): string {
-		return env.TRACKRECORD_APP_URL.replace(/\/$/, '')
 	}
 
 	@NoTrace()

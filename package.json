@@ -16,6 +16,7 @@
 		"billing:test:status": "AUTO_RUN_MIGRATIONS=false TS_NODE_TRANSPILE_ONLY=true node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/billingTestHelper.ts status",
 		"billing:test:trial-ended": "AUTO_RUN_MIGRATIONS=false TS_NODE_TRANSPILE_ONLY=true node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/billingTestHelper.ts set --state=trial-ended",
 		"billing:test:active-core": "AUTO_RUN_MIGRATIONS=false TS_NODE_TRANSPILE_ONLY=true node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/billingTestHelper.ts set --state=active --plan=core",
+		"lifecycle:preview": "TS_NODE_TRANSPILE_ONLY=true node -r dotenv/config -r ts-node/register -r tsconfig-paths/register scripts/lifecycleEmailPreview.ts",
 		"test": "jest",
 		"test:ci": "jest --ci",
 		"lint": "eslint \"./api-*/**/*.ts\" --cache",
