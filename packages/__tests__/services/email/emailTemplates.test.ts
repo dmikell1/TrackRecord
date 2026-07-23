@@ -52,8 +52,8 @@ describe('email templates branding', () => {
 	})
 
 	it('builds coach lifecycle emails with branding and placeholders filled', () => {
-		const appUrl = 'https://trackrecordhq.com'
-		const billingUrl = 'https://trackrecordhq.com'
+		const appUrl = 'trackrecord://home'
+		const billingUrl = 'trackrecord://settings'
 
 		const welcome = buildCoachWelcomeEmail({
 			firstName: 'Devyn',
