@@ -30,10 +30,14 @@ import { updateTeamSettings } from '@api-core/src/resolvers/mutations/team/updat
 import { teamInviteLink } from '@api-core/src/resolvers/mutations/team/teamInviteLink'
 import { syncCompanySubscription } from '@api-core/src/resolvers/mutations/billing/syncCompanySubscription'
 import { deleteMyAccount } from '@api-core/src/resolvers/mutations/user/deleteMyAccount'
+import { registerPushToken } from '@api-core/src/resolvers/mutations/push/registerPushToken'
+import { unregisterPushToken } from '@api-core/src/resolvers/mutations/push/unregisterPushToken'
 
 const Mutation = {
 	syncCompanySubscription,
 	deleteMyAccount,
+	registerPushToken,
+	unregisterPushToken,
 	createTrainingSession,
 	updateTrainingSession,
 	deleteTrainingSession,

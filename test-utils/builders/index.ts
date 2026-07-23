@@ -1,6 +1,7 @@
 export * from './athlete'
 export * from './athleteInvite'
 export * from './company'
+export * from './pushDeviceToken'
 export * from './team'
 export * from './trackRecordNotification'
 export * from './trainingSession'

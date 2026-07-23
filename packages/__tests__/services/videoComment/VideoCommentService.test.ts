@@ -5,7 +5,7 @@ import { NotificationType } from '@packages/enums/notifications'
 import { ParentalConsentStatus } from '@packages/enums/trackRecord'
 import { AthleteRepository } from '@packages/repositories/athlete/AthleteRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
-import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
+import { TrackRecordNotificationService } from '@packages/services/notification/TrackRecordNotificationService'
 import { VideoCommentRepository } from '@packages/repositories/videoComment/VideoCommentRepository'
 import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
@@ -36,7 +36,7 @@ describe('VideoCommentService', () => {
 	let mockVideoPerformanceRepository: jest.Mocked<VideoPerformanceRepository>
 	let mockAthleteRepository: jest.Mocked<AthleteRepository>
 	let mockTeamRepository: jest.Mocked<TeamRepository>
-	let mockNotificationRepository: jest.Mocked<TrackRecordNotificationRepository>
+	let mockNotificationService: jest.Mocked<TrackRecordNotificationService>
 	let mockEntitlementService: jest.Mocked<EntitlementService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
@@ -50,7 +50,7 @@ describe('VideoCommentService', () => {
 		mockVideoPerformanceRepository = mock<VideoPerformanceRepository>()
 		mockAthleteRepository = mock<AthleteRepository>()
 		mockTeamRepository = mock<TeamRepository>()
-		mockNotificationRepository = mock<TrackRecordNotificationRepository>()
+		mockNotificationService = mock<TrackRecordNotificationService>()
 		mockEntitlementService = mock<EntitlementService>()
 		mockReportingService = mock<ReportingService>()
 		mockReportingService.withTrace.mockImplementation(({ fn }) => fn())
@@ -68,8 +68,8 @@ describe('VideoCommentService', () => {
 		container.registerInstance(AthleteRepository, mockAthleteRepository)
 		container.registerInstance(TeamRepository, mockTeamRepository)
 		container.registerInstance(
-			TrackRecordNotificationRepository,
-			mockNotificationRepository
+			TrackRecordNotificationService,
+			mockNotificationService
 		)
 		container.registerInstance(EntitlementService, mockEntitlementService)
 		container.registerInstance(ReportingService, mockReportingService)
@@ -145,7 +145,7 @@ describe('VideoCommentService', () => {
 				createdAt: new Date(),
 				updatedAt: new Date()
 			})
-			mockNotificationRepository.create.mockResolvedValue({
+			mockNotificationService.createNotification.mockResolvedValue({
 				id: 'notif-1',
 				userId: coachUserId,
 				teamId,
@@ -166,7 +166,7 @@ describe('VideoCommentService', () => {
 			})
 			await flushBackgroundWork()
 
-			expect(mockNotificationRepository.create).toHaveBeenCalledWith({
+			expect(mockNotificationService.createNotification).toHaveBeenCalledWith({
 				data: expect.objectContaining({
 					userId: coachUserId,
 					teamId,
@@ -217,7 +217,7 @@ describe('VideoCommentService', () => {
 				createdAt: new Date(),
 				updatedAt: new Date()
 			})
-			mockNotificationRepository.create.mockResolvedValue({
+			mockNotificationService.createNotification.mockResolvedValue({
 				id: 'notif-2',
 				userId: athleteUserId,
 				teamId,
@@ -239,7 +239,7 @@ describe('VideoCommentService', () => {
 			})
 			await flushBackgroundWork()
 
-			expect(mockNotificationRepository.create).toHaveBeenCalledWith({
+			expect(mockNotificationService.createNotification).toHaveBeenCalledWith({
 				data: expect.objectContaining({
 					userId: athleteUserId,
 					teamId,
@@ -303,7 +303,7 @@ describe('VideoCommentService', () => {
 				createdAt: new Date(),
 				updatedAt: new Date()
 			})
-			mockNotificationRepository.create.mockResolvedValue({
+			mockNotificationService.createNotification.mockResolvedValue({
 				id: 'notif-4',
 				userId: athleteUserId,
 				teamId,
@@ -327,7 +327,7 @@ describe('VideoCommentService', () => {
 			expect(mockVideoPerformanceRepository.find).toHaveBeenCalledWith({
 				filter: { videoId: video.id, teamId }
 			})
-			expect(mockNotificationRepository.create).toHaveBeenCalledWith({
+			expect(mockNotificationService.createNotification).toHaveBeenCalledWith({
 				data: expect.objectContaining({
 					userId: athleteUserId,
 					text: 'Coach left a note on your 100m video.',
@@ -374,7 +374,7 @@ describe('VideoCommentService', () => {
 			})
 			await flushBackgroundWork()
 
-			expect(mockNotificationRepository.create).not.toHaveBeenCalled()
+			expect(mockNotificationService.createNotification).not.toHaveBeenCalled()
 		})
 
 		it('throws when video does not belong to team', async () => {

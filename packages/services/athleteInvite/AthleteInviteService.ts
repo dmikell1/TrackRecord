@@ -15,11 +15,11 @@ import { AthleteInviteRepository } from '@packages/repositories/athleteInvite/At
 import { AthleteRepository } from '@packages/repositories/athlete/AthleteRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { UserRepository } from '@packages/repositories/user/UserRepository'
-import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import { buildAthleteInviteEmail } from '@packages/services/email/athleteInviteEmailTemplate'
 import { buildParentalConsentEmail } from '@packages/services/email/parentalConsentEmailTemplate'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
+import { TrackRecordNotificationService } from '@packages/services/notification/TrackRecordNotificationService'
 import queueService from '@packages/services/queue/QueueService'
 import { UserService } from '@packages/services/user/UserService'
 import {
@@ -64,7 +64,8 @@ export class AthleteInviteService {
 		@inject(TeamRepository) private teamRepository: TeamRepository,
 		@inject(UserRepository) private userRepository: UserRepository,
 		@inject(UserService) private userService: UserService,
-		@inject(TrackRecordNotificationRepository) private notificationRepository: TrackRecordNotificationRepository,
+		@inject(TrackRecordNotificationService)
+		private trackRecordNotificationService: TrackRecordNotificationService,
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
 
@@ -872,7 +873,7 @@ export class AthleteInviteService {
 			return
 		}
 
-		await this.notificationRepository.create({
+		await this.trackRecordNotificationService.createNotification({
 			data: {
 				userId: coachUserId,
 				teamId,

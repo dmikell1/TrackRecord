@@ -8,6 +8,7 @@ import {
 import { CompanyRepository } from '@packages/repositories/company/CompanyRepository'
 import { UserRepository } from '@packages/repositories/user/UserRepository'
 import { EntitlementService } from '@packages/services/billing/EntitlementService'
+import { CoachLifecycleEmailService } from '@packages/services/email/CoachLifecycleEmailService'
 import ReportErrors, {
 	NoTrace
 } from '@packages/services/logging/decorators/reportErrors'
@@ -25,6 +26,8 @@ export class SubscriptionService {
 		private userRepository: UserRepository,
 		@inject(EntitlementService)
 		private entitlementService: EntitlementService,
+		@inject(CoachLifecycleEmailService)
+		private coachLifecycleEmailService: CoachLifecycleEmailService,
 		@inject(ReportingService)
 		private reportingService: ReportingService
 	) {}
@@ -73,12 +76,13 @@ export class SubscriptionService {
 			}
 		}
 
+		const previousStatus = company.subscriptionStatus
 		const status = this.resolveStatusFromStore({
 			isActive,
 			isInTrial: isInTrial === true
 		})
 
-		return await this.entitlementService.applySubscriptionUpdate({
+		const updated = await this.entitlementService.applySubscriptionUpdate({
 			companyId,
 			plan: isActive ? plan : company.subscriptionPlan ?? plan,
 			status,
@@ -87,6 +91,16 @@ export class SubscriptionService {
 			trialEndsAt:
 				status === SubscriptionStatus.Trial ? (expiresAt ?? null) : null
 		})
+
+		await this.notifyLifecycleAfterUpdate({
+			companyId,
+			previousStatus,
+			nextStatus: status,
+			plan: updated.subscriptionPlan ?? plan,
+			trialEndsAt: updated.trialEndsAt ?? null
+		})
+
+		return updated
 	}
 
 	public async handleRevenueCatWebhook({
@@ -139,6 +153,7 @@ export class SubscriptionService {
 			periodType != null &&
 			STORE_TRIAL_PERIOD_TYPES.has(periodType.toUpperCase())
 
+		const previousStatus = company.subscriptionStatus
 		const status = this.resolveStatusFromStore({
 			isActive,
 			isInTrial
@@ -161,7 +176,7 @@ export class SubscriptionService {
 			}
 		}
 
-		return await this.entitlementService.applySubscriptionUpdate({
+		const updated = await this.entitlementService.applySubscriptionUpdate({
 			companyId: company.id,
 			plan: planToApply,
 			status,
@@ -170,6 +185,61 @@ export class SubscriptionService {
 			trialEndsAt:
 				status === SubscriptionStatus.Trial ? (expirationAt ?? null) : null
 		})
+
+		await this.notifyLifecycleAfterUpdate({
+			companyId: company.id,
+			previousStatus,
+			nextStatus: status,
+			plan: updated.subscriptionPlan ?? planToApply,
+			trialEndsAt: updated.trialEndsAt ?? null
+		})
+
+		return updated
+	}
+
+	private async notifyLifecycleAfterUpdate({
+		companyId,
+		previousStatus,
+		nextStatus,
+		plan,
+		trialEndsAt
+	}: {
+		companyId: string
+		previousStatus: SubscriptionStatus
+		nextStatus: SubscriptionStatus
+		plan: SubscriptionPlan | null
+		trialEndsAt: Date | null
+	}): Promise<void> {
+		try {
+			if (
+				nextStatus === SubscriptionStatus.Trial &&
+				previousStatus !== SubscriptionStatus.Trial &&
+				trialEndsAt
+			) {
+				await this.coachLifecycleEmailService.onTrialStarted({
+					companyId,
+					trialEndsAt,
+					plan
+				})
+			}
+
+			if (previousStatus !== nextStatus) {
+				await this.coachLifecycleEmailService.onSubscriptionStatusChanged({
+					companyId,
+					previousStatus,
+					nextStatus,
+					plan
+				})
+			}
+		} catch (error) {
+			this.reportingService.error({
+				message: 'Failed to notify lifecycle after subscription update',
+				error: error as Error,
+				companyId,
+				previousStatus,
+				nextStatus
+			})
+		}
 	}
 
 	@NoTrace()

@@ -6,6 +6,7 @@ import { CompanyRepository } from '@packages/repositories/company/CompanyReposit
 import { UserRepository } from '@packages/repositories/user/UserRepository'
 import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import { SubscriptionService } from '@packages/services/billing/SubscriptionService'
+import { CoachLifecycleEmailService } from '@packages/services/email/CoachLifecycleEmailService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import type { CompanyInterface } from '@packages/types/company'
 
@@ -14,6 +15,7 @@ describe('SubscriptionService', () => {
 	let mockCompanyRepository: jest.Mocked<CompanyRepository>
 	let mockUserRepository: jest.Mocked<UserRepository>
 	let mockEntitlementService: jest.Mocked<EntitlementService>
+	let mockCoachLifecycleEmailService: jest.Mocked<CoachLifecycleEmailService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
 	const buildCompany = (
@@ -35,12 +37,17 @@ describe('SubscriptionService', () => {
 		mockCompanyRepository = mock<CompanyRepository>()
 		mockUserRepository = mock<UserRepository>()
 		mockEntitlementService = mock<EntitlementService>()
+		mockCoachLifecycleEmailService = mock<CoachLifecycleEmailService>()
 		mockReportingService = mock<ReportingService>()
 		mockReportingService.withTrace.mockImplementation(({ fn }) => fn())
 
 		container.registerInstance(CompanyRepository, mockCompanyRepository)
 		container.registerInstance(UserRepository, mockUserRepository)
 		container.registerInstance(EntitlementService, mockEntitlementService)
+		container.registerInstance(
+			CoachLifecycleEmailService,
+			mockCoachLifecycleEmailService
+		)
 		container.registerInstance(ReportingService, mockReportingService)
 
 		service = container.resolve(SubscriptionService)

@@ -4,6 +4,7 @@ import { container } from 'tsyringe'
 import { UserStatus } from '@packages/enums'
 import { AthleteInviteService } from '@packages/services/athleteInvite/AthleteInviteService'
 import { CompanyService } from '@packages/services/company/CompanyService'
+import { CoachLifecycleEmailService } from '@packages/services/email/CoachLifecycleEmailService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { CoachSignupService } from '@packages/services/user/CoachSignupService'
 import { UserService } from '@packages/services/user/UserService'
@@ -22,17 +23,23 @@ describe('CoachSignupService', () => {
 	let mockUserService: jest.Mocked<UserService>
 	let mockCompanyService: jest.Mocked<CompanyService>
 	let mockAthleteInviteService: jest.Mocked<AthleteInviteService>
+	let mockCoachLifecycleEmailService: jest.Mocked<CoachLifecycleEmailService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
 	beforeEach(() => {
 		mockUserService = mock<UserService>()
 		mockCompanyService = mock<CompanyService>()
 		mockAthleteInviteService = mock<AthleteInviteService>()
+		mockCoachLifecycleEmailService = mock<CoachLifecycleEmailService>()
 		mockReportingService = mock<ReportingService>()
 
 		container.registerInstance(UserService, mockUserService)
 		container.registerInstance(CompanyService, mockCompanyService)
 		container.registerInstance(AthleteInviteService, mockAthleteInviteService)
+		container.registerInstance(
+			CoachLifecycleEmailService,
+			mockCoachLifecycleEmailService
+		)
 		container.registerInstance(ReportingService, mockReportingService)
 
 		service = container.resolve(CoachSignupService)
@@ -123,6 +130,13 @@ describe('CoachSignupService', () => {
 
 			expect(mockUserService.createUser).toHaveBeenCalled()
 			expect(mockCompanyService.createCompany).toHaveBeenCalled()
+			expect(
+				mockCoachLifecycleEmailService.enrollOnCoachSignup
+			).toHaveBeenCalledWith({
+				user: createdUser,
+				companyId: 'company-1',
+				teamId: 'team-1'
+			})
 		})
 	})
 })

@@ -10,7 +10,7 @@ import {
 	TeamRecorderStatus
 } from '@packages/enums/trackRecord'
 import { CompanyRepository } from '@packages/repositories/company/CompanyRepository'
-import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
+import { TrackRecordNotificationService } from '@packages/services/notification/TrackRecordNotificationService'
 import { RecorderInviteRepository } from '@packages/repositories/recorderInvite/RecorderInviteRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
 import { UserRepository } from '@packages/repositories/user/UserRepository'
@@ -47,7 +47,7 @@ describe('RecorderInviteService', () => {
 	let mockUserRoleRepository: jest.Mocked<UserRoleRepository>
 	let mockUserService: jest.Mocked<UserService>
 	let mockEntitlementService: jest.Mocked<EntitlementService>
-	let mockNotificationRepository: jest.Mocked<TrackRecordNotificationRepository>
+	let mockNotificationService: jest.Mocked<TrackRecordNotificationService>
 	let mockReportingService: jest.Mocked<ReportingService>
 
 	const team: TeamInterface = {
@@ -81,7 +81,7 @@ describe('RecorderInviteService', () => {
 		mockUserRoleRepository = mock<UserRoleRepository>()
 		mockUserService = mock<UserService>()
 		mockEntitlementService = mock<EntitlementService>()
-		mockNotificationRepository = mock<TrackRecordNotificationRepository>()
+		mockNotificationService = mock<TrackRecordNotificationService>()
 		mockReportingService = mock<ReportingService>()
 
 		mockReportingService.withTrace.mockImplementation(({ fn }) => fn())
@@ -97,7 +97,7 @@ describe('RecorderInviteService', () => {
 			companyId: team.companyId,
 			role: UserRoles.Recorder
 		})
-		mockNotificationRepository.create.mockResolvedValue({
+		mockNotificationService.createNotification.mockResolvedValue({
 			id: 'notif-1',
 			userId: 'coach-1',
 			teamId: team.id,
@@ -119,8 +119,8 @@ describe('RecorderInviteService', () => {
 		container.registerInstance(UserService, mockUserService)
 		container.registerInstance(EntitlementService, mockEntitlementService)
 		container.registerInstance(
-			TrackRecordNotificationRepository,
-			mockNotificationRepository
+			TrackRecordNotificationService,
+			mockNotificationService
 		)
 		container.registerInstance(ReportingService, mockReportingService)
 

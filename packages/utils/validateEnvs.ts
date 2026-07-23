@@ -52,6 +52,8 @@ const envSchema = z
 		CLOUDFLARE_R2_ACCESS_KEY_ID: z.string().default(''),
 		CLOUDFLARE_R2_SECRET_ACCESS_KEY: z.string().default(''),
 		CLOUDFLARE_R2_PUBLIC_URL: z.string().default(''),
+		// EXPO PUSH (optional; used when set for authenticated Expo push sends)
+		EXPO_ACCESS_TOKEN: z.string().default(''),
 		// CORS
 		FRONTEND_URL: z.string().default('http://localhost:3000'),
 		WEBSITE_URL: z.string().default('http://localhost:3001'),
