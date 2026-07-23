@@ -1,36 +1,32 @@
 /**
- * Deep links into the TrackRecord mobile app (Expo scheme: trackrecord).
- * Prefer these for coach lifecycle CTAs — TRACKRECORD_APP_URL is the marketing
- * site and only serves /join and /parental-consent web flows.
+ * HTTPS links for coach lifecycle email CTAs.
+ *
+ * Email clients (Gmail, Outlook, etc.) often strip custom schemes like
+ * `trackrecord://`, which makes buttons non-clickable. Use marketing-site
+ * `/open/{path}` URLs instead — those pages redirect into the app.
  */
 
-const COACH_APP_SCHEME = 'trackrecord'
+import { env } from '@packages/utils/validateEnvs'
 
-export const buildCoachAppDeepLink = ({
-	path
-}: {
-	path: string
-}): string => {
-	const normalized = path.replace(/^\//, '').replace(/\/$/, '')
-	if (normalized.length === 0) {
-		return `${COACH_APP_SCHEME}://home`
-	}
-	return `${COACH_APP_SCHEME}://${normalized}`
+const buildOpenAppHttpsLink = ({ path }: { path: string }): string => {
+	const baseUrl = env.TRACKRECORD_APP_URL.replace(/\/$/, '')
+	const normalized = path.replace(/^\//, '').replace(/\/$/, '') || 'home'
+	return `${baseUrl}/open/${normalized}`
 }
 
 /** Coach home / open app. */
 export const buildCoachHomeDeepLink = (): string => {
-	return buildCoachAppDeepLink({ path: 'home' })
+	return buildOpenAppHttpsLink({ path: 'home' })
 }
 
 /** Athletes tab — add / manage roster. */
 export const buildCoachAthletesDeepLink = (): string => {
-	return buildCoachAppDeepLink({ path: 'athletes' })
+	return buildOpenAppHttpsLink({ path: 'athletes' })
 }
 
 /** Settings — plan / manage subscription. */
 export const buildCoachSettingsDeepLink = (): string => {
-	return buildCoachAppDeepLink({ path: 'settings' })
+	return buildOpenAppHttpsLink({ path: 'settings' })
 }
 
 /**
