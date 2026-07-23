@@ -100,10 +100,14 @@ export class TeamService {
 			}
 		})
 
-		if (settings.enabledEvents !== undefined) {
-			this.teamEventSettingsService.validateEnabledEvents({
-				settings: merged,
-				enabledEvents: settings.enabledEvents
+		const isUpdatingEventSettings =
+			settings.coachingLevels !== undefined ||
+			settings.focusedEventGroups !== undefined ||
+			settings.enabledEvents !== undefined
+
+		if (isUpdatingEventSettings) {
+			this.teamEventSettingsService.validateSettingsUpdate({
+				settings: merged
 			})
 		}
 
