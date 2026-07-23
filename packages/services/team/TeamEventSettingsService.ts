@@ -90,6 +90,29 @@ export class TeamEventSettingsService {
 		return getEventCatalog({ levels })
 	}
 
+	public validateSettingsUpdate({
+		settings
+	}: {
+		settings: TeamSettingsInterface
+	}): void {
+		const coachingLevels = settings.coachingLevels ?? []
+		const focusedEventGroups = settings.focusedEventGroups ?? []
+		const enabledEvents = settings.enabledEvents ?? []
+
+		if (coachingLevels.length === 0) {
+			throw new Error('Select at least one coaching level')
+		}
+
+		if (focusedEventGroups.length === 0) {
+			throw new Error('Select at least one event focus area')
+		}
+
+		this.validateEnabledEvents({
+			settings,
+			enabledEvents
+		})
+	}
+
 	public validateEnabledEvents({
 		settings,
 		enabledEvents
