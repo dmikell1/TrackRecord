@@ -6,7 +6,7 @@ import { UserRepository } from '@packages/repositories/user/UserRepository'
 import { AthleteInviteRepository } from '@packages/repositories/athleteInvite/AthleteInviteRepository'
 import { AthleteRepository } from '@packages/repositories/athlete/AthleteRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
-import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
+import { TrackRecordNotificationService } from '@packages/services/notification/TrackRecordNotificationService'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { UserService } from '@packages/services/user/UserService'
 import { AthleteInviteService } from '@packages/services/athleteInvite/AthleteInviteService'
@@ -33,7 +33,7 @@ describe('AthleteInviteService', () => {
 	let mockAthleteInviteRepository: jest.Mocked<AthleteInviteRepository>
 	let mockAthleteRepository: jest.Mocked<AthleteRepository>
 	let mockTeamRepository: jest.Mocked<TeamRepository>
-	let mockNotificationRepository: jest.Mocked<TrackRecordNotificationRepository>
+	let mockNotificationService: jest.Mocked<TrackRecordNotificationService>
 	let mockUserRepository: jest.Mocked<UserRepository>
 	let mockUserService: jest.Mocked<UserService>
 	let mockReportingService: jest.Mocked<ReportingService>
@@ -42,7 +42,7 @@ describe('AthleteInviteService', () => {
 		mockAthleteInviteRepository = mock<AthleteInviteRepository>()
 		mockAthleteRepository = mock<AthleteRepository>()
 		mockTeamRepository = mock<TeamRepository>()
-		mockNotificationRepository = mock<TrackRecordNotificationRepository>()
+		mockNotificationService = mock<TrackRecordNotificationService>()
 		mockUserRepository = mock<UserRepository>()
 		mockUserService = mock<UserService>()
 		mockReportingService = mock<ReportingService>()
@@ -53,7 +53,7 @@ describe('AthleteInviteService', () => {
 		container.registerInstance(AthleteInviteRepository, mockAthleteInviteRepository)
 		container.registerInstance(AthleteRepository, mockAthleteRepository)
 		container.registerInstance(TeamRepository, mockTeamRepository)
-		container.registerInstance(TrackRecordNotificationRepository, mockNotificationRepository)
+		container.registerInstance(TrackRecordNotificationService, mockNotificationService)
 		container.registerInstance(UserRepository, mockUserRepository)
 		container.registerInstance(UserService, mockUserService)
 		container.registerInstance(ReportingService, mockReportingService)
@@ -401,7 +401,7 @@ describe('AthleteInviteService', () => {
 			mockAthleteRepository.create.mockResolvedValue(athlete)
 			mockTeamRepository.addTeamUser.mockResolvedValue(undefined)
 			mockTeamRepository.findOne.mockResolvedValue(team)
-			mockNotificationRepository.create.mockResolvedValue({
+			mockNotificationService.createNotification.mockResolvedValue({
 				id: 'notif-1',
 				userId: 'coach-1',
 				teamId: team.id,
@@ -565,7 +565,7 @@ describe('AthleteInviteService', () => {
 				updatedAt: new Date()
 			})
 			mockAthleteInviteRepository.update.mockResolvedValue({ ...invite, status: AthleteInviteStatus.Accepted })
-			mockNotificationRepository.create.mockResolvedValue({
+			mockNotificationService.createNotification.mockResolvedValue({
 				id: 'notif-1',
 				userId: coachUserId,
 				teamId: invite.teamId,
@@ -585,7 +585,7 @@ describe('AthleteInviteService', () => {
 				filter: { id: invite.id },
 				data: { status: AthleteInviteStatus.Accepted, acceptedByUserId: 'user-1' }
 			})
-			expect(mockNotificationRepository.create).toHaveBeenCalledWith({
+			expect(mockNotificationService.createNotification).toHaveBeenCalledWith({
 				data: expect.objectContaining({
 					userId: coachUserId,
 					teamId: invite.teamId,
@@ -621,7 +621,7 @@ describe('AthleteInviteService', () => {
 				updatedAt: new Date()
 			})
 			mockAthleteInviteRepository.update.mockResolvedValue({ ...invite, status: AthleteInviteStatus.Accepted })
-			mockNotificationRepository.create.mockRejectedValue(new Error('DB error'))
+			mockNotificationService.createNotification.mockRejectedValue(new Error('DB error'))
 
 			await expect(
 				service.acceptAthleteInvite({
@@ -662,7 +662,7 @@ describe('AthleteInviteService', () => {
 				...invite,
 				status: AthleteInviteStatus.Accepted
 			})
-			mockNotificationRepository.create.mockResolvedValue({
+			mockNotificationService.createNotification.mockResolvedValue({
 				id: 'notif-1',
 				userId: 'coach-1',
 				teamId: invite.teamId,
@@ -899,7 +899,7 @@ describe('AthleteInviteService', () => {
 				...invite,
 				status: AthleteInviteStatus.Accepted
 			})
-			mockNotificationRepository.create.mockResolvedValue({
+			mockNotificationService.createNotification.mockResolvedValue({
 				id: 'notif-1',
 				userId: 'coach-1',
 				teamId: invite.teamId,

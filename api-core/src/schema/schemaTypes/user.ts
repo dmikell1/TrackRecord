@@ -7,6 +7,13 @@ export const User = gql`
 
 	extend type Mutation {
 		deleteMyAccount: Boolean!
+		registerPushToken(token: String!, platform: PushPlatform!): Boolean!
+		unregisterPushToken(token: String!): Boolean!
+	}
+
+	enum PushPlatform {
+		ios
+		android
 	}
 
 	type User {

@@ -38,9 +38,10 @@ import healthRouter from '@api-core/src/controllers/health'
 import { presignRouter } from '@api-core/src/controllers/media/presignUpload'
 import { deleteObjectRouter } from '@api-core/src/controllers/media/deleteObject'
 
+import { startCoachLifecycleEmailProcessor } from '@packages/services/email/startCoachLifecycleEmailProcessor'
 import { createReportingService } from '@packages/services/logging/ReportingService'
-import { Context } from '@packages/types'
 import { pgSession } from '@packages/middlewares/pgSession'
+import { Context } from '@packages/types'
 
 const ReportingService = createReportingService()
 
@@ -165,4 +166,6 @@ export const startApolloServer = async (): Promise<void> => {
 	httpServer.listen({ port }, () =>
 		ReportingService.log({ message: `app listening on port ${port}` })
 	)
+
+	startCoachLifecycleEmailProcessor()
 }

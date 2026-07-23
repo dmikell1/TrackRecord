@@ -25,6 +25,8 @@ export const permissions = {
 		root: authorizationRules.withPublicAccess,
 		syncCompanySubscription: authorizationRules.isClerkOrAppAuthenticated,
 		deleteMyAccount: authorizationRules.isClerkOrAppAuthenticated,
+		registerPushToken: authorizationRules.isClerkOrAppAuthenticated,
+		unregisterPushToken: authorizationRules.isClerkOrAppAuthenticated,
 		// Training Sessions (coach-only)
 		createTrainingSession: authorizationRules.withCoachAccess,
 		updateTrainingSession: authorizationRules.withCoachAccess,

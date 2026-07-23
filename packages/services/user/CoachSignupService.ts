@@ -6,6 +6,7 @@ import { UserStatus } from '@packages/enums'
 import { AthleteInviteService } from '@packages/services/athleteInvite/AthleteInviteService'
 import SlackService from '@packages/services/communication/SlackService'
 import { CompanyService } from '@packages/services/company/CompanyService'
+import { CoachLifecycleEmailService } from '@packages/services/email/CoachLifecycleEmailService'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
 import { UserService } from '@packages/services/user/UserService'
@@ -53,6 +54,8 @@ export class CoachSignupService {
 		@inject(CompanyService) private companyService: CompanyService,
 		@inject(AthleteInviteService)
 		private athleteInviteService: AthleteInviteService,
+		@inject(CoachLifecycleEmailService)
+		private coachLifecycleEmailService: CoachLifecycleEmailService,
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
 
@@ -160,7 +163,7 @@ export class CoachSignupService {
 
 		this.reportingService.log({ message: `created user: ${user.id}` })
 
-		const { company } = await this.companyService.createCompany({
+		const { company, team } = await this.companyService.createCompany({
 			data: {
 				ownerId: user.id,
 				name: companyName,
@@ -174,6 +177,21 @@ export class CoachSignupService {
 		})
 
 		this.reportingService.log({ message: `created company: ${company.id}` })
+
+		try {
+			await this.coachLifecycleEmailService.enrollOnCoachSignup({
+				user,
+				companyId: company.id,
+				teamId: team.id
+			})
+		} catch (error) {
+			this.reportingService.error({
+				message: 'Failed to enroll coach lifecycle emails',
+				error: error as Error,
+				userId: user.id,
+				companyId: company.id
+			})
+		}
 
 		const createdAt = user.createdAt ?? new Date()
 		const registerDate = format(

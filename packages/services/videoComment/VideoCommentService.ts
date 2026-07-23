@@ -7,10 +7,10 @@ import { VideoCommentRepository } from '@packages/repositories/videoComment/Vide
 import { VideoRepository } from '@packages/repositories/video/VideoRepository'
 import { VideoPerformanceRepository } from '@packages/repositories/videoPerformance/VideoPerformanceRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
-import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import { EntitlementService } from '@packages/services/billing/EntitlementService'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
+import { TrackRecordNotificationService } from '@packages/services/notification/TrackRecordNotificationService'
 import type { AthleteInterface } from '@packages/types/athlete'
 import type { TeamInterface } from '@packages/types/team'
 import type { VideoInterface } from '@packages/types/video'
@@ -29,7 +29,8 @@ export class VideoCommentService {
 		private videoPerformanceRepository: VideoPerformanceRepository,
 		@inject(AthleteRepository) private athleteRepository: AthleteRepository,
 		@inject(TeamRepository) private teamRepository: TeamRepository,
-		@inject(TrackRecordNotificationRepository) private notificationRepository: TrackRecordNotificationRepository,
+		@inject(TrackRecordNotificationService)
+		private trackRecordNotificationService: TrackRecordNotificationService,
 		@inject(EntitlementService) private entitlementService: EntitlementService,
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
@@ -166,7 +167,7 @@ export class VideoCommentService {
 				return
 			}
 
-			await this.notificationRepository.create({
+			await this.trackRecordNotificationService.createNotification({
 				data: {
 					userId: coachUserId,
 					teamId: video.teamId,
@@ -192,7 +193,7 @@ export class VideoCommentService {
 				continue
 			}
 
-			await this.notificationRepository.create({
+			await this.trackRecordNotificationService.createNotification({
 				data: {
 					userId: athleteUserId,
 					teamId: video.teamId,

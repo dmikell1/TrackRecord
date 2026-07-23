@@ -12,7 +12,6 @@ import {
 } from '@packages/enums/trackRecord'
 import { NotificationType } from '@packages/enums/notifications'
 import { CompanyRepository } from '@packages/repositories/company/CompanyRepository'
-import { TrackRecordNotificationRepository } from '@packages/repositories/notification/TrackRecordNotificationRepository'
 import type { RecorderInviteFilter } from '@packages/repositories/recorderInvite/RecorderInviteRepository'
 import { RecorderInviteRepository } from '@packages/repositories/recorderInvite/RecorderInviteRepository'
 import { TeamRepository } from '@packages/repositories/team/TeamRepository'
@@ -22,6 +21,7 @@ import { EntitlementService } from '@packages/services/billing/EntitlementServic
 import { buildRecorderInviteEmail } from '@packages/services/email/recorderInviteEmailTemplate'
 import ReportErrors from '@packages/services/logging/decorators/reportErrors'
 import { ReportingService } from '@packages/services/logging/ReportingService'
+import { TrackRecordNotificationService } from '@packages/services/notification/TrackRecordNotificationService'
 import queueService from '@packages/services/queue/QueueService'
 import { UserService } from '@packages/services/user/UserService'
 import type { JoinInfoInterface } from '@packages/types/join'
@@ -54,8 +54,8 @@ export class RecorderInviteService {
 		@inject(UserRoleRepository) private userRoleRepository: UserRoleRepository,
 		@inject(UserService) private userService: UserService,
 		@inject(EntitlementService) private entitlementService: EntitlementService,
-		@inject(TrackRecordNotificationRepository)
-		private notificationRepository: TrackRecordNotificationRepository,
+		@inject(TrackRecordNotificationService)
+		private trackRecordNotificationService: TrackRecordNotificationService,
 		@inject(ReportingService) private reportingService: ReportingService
 	) {}
 
@@ -622,8 +622,8 @@ export class RecorderInviteService {
 			? `${user.firstName} ${user.lastName}`.trim() || user.email
 			: 'A recorder'
 
-		await this.notificationRepository
-			.create({
+		await this.trackRecordNotificationService
+			.createNotification({
 				data: {
 					userId: coachUserId,
 					teamId,

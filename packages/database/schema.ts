@@ -296,6 +296,58 @@ export const trackRecordNotifications = pgTable('track_record_notifications', {
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 })
 
+export const pushDeviceTokens = pgTable(
+	'push_device_tokens',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		token: text('token').notNull(),
+		platform: varchar('platform', { length: 20 }).notNull(),
+		...standardTimestamps
+	},
+	(t) => ({
+		tokenUnique: uniqueIndex('push_device_tokens_token_unique').on(t.token),
+		userIdIdx: index('push_device_tokens_user_id_idx').on(t.userId)
+	})
+)
+
+export const coachLifecycleEmailJobs = pgTable(
+	'coach_lifecycle_email_jobs',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		companyId: uuid('company_id')
+			.notNull()
+			.references(() => companies.id, { onDelete: 'cascade' }),
+		teamId: uuid('team_id')
+			.notNull()
+			.references(() => teams.id, { onDelete: 'cascade' }),
+		step: varchar('step', { length: 50 }).notNull(),
+		status: varchar('status', { length: 50 }).notNull().default('pending'),
+		scheduledFor: timestamp('scheduled_for', { withTimezone: true }).notNull(),
+		sentAt: timestamp('sent_at', { withTimezone: true }),
+		skippedAt: timestamp('skipped_at', { withTimezone: true }),
+		skipReason: text('skip_reason'),
+		...standardTimestamps
+	},
+	(t) => ({
+		userStepUnique: uniqueIndex(
+			'coach_lifecycle_email_jobs_user_step_unique'
+		).on(t.userId, t.step),
+		dueIdx: index('coach_lifecycle_email_jobs_due_idx').on(
+			t.status,
+			t.scheduledFor
+		),
+		companyIdIdx: index('coach_lifecycle_email_jobs_company_id_idx').on(
+			t.companyId
+		)
+	})
+)
+
 // ─── Track Record Relations ────────────────────────────────────────────────────
 
 export const athletesRelations = relations(athletes, ({ one, many }) => ({
@@ -350,10 +402,33 @@ export const trackRecordNotificationsRelations = relations(trackRecordNotificati
 	team: one(teams, { fields: [trackRecordNotifications.teamId], references: [teams.id] })
 }))
 
+export const pushDeviceTokensRelations = relations(pushDeviceTokens, ({ one }) => ({
+	user: one(users, { fields: [pushDeviceTokens.userId], references: [users.id] })
+}))
+
+export const coachLifecycleEmailJobsRelations = relations(
+	coachLifecycleEmailJobs,
+	({ one }) => ({
+		user: one(users, {
+			fields: [coachLifecycleEmailJobs.userId],
+			references: [users.id]
+		}),
+		company: one(companies, {
+			fields: [coachLifecycleEmailJobs.companyId],
+			references: [companies.id]
+		}),
+		team: one(teams, {
+			fields: [coachLifecycleEmailJobs.teamId],
+			references: [teams.id]
+		})
+	})
+)
+
 export const usersRelations = relations(users, ({ many }) => ({
 	companyLinks: many(companyUsers),
 	teamLinks: many(teamUsers),
-	roles: many(userRoles)
+	roles: many(userRoles),
+	pushDeviceTokens: many(pushDeviceTokens)
 }))
 
 export const companiesRelations = relations(companies, ({ one, many }) => ({
@@ -392,6 +467,8 @@ export const schema = {
 	videoPerformances,
 	videoComments,
 	trackRecordNotifications,
+	pushDeviceTokens,
+	coachLifecycleEmailJobs,
 	usersRelations,
 	companiesRelations,
 	teamsRelations,
@@ -402,5 +479,7 @@ export const schema = {
 	videosRelations,
 	videoPerformancesRelations,
 	videoCommentsRelations,
-	trackRecordNotificationsRelations
+	trackRecordNotificationsRelations,
+	pushDeviceTokensRelations,
+	coachLifecycleEmailJobsRelations
 }
