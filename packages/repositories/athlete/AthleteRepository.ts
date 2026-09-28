@@ -42,7 +42,6 @@ export class AthleteRepository extends BaseRepository<
 			firstName: row.firstName,
 			lastName: row.lastName,
 			email: row.email,
-			phone: row.phone,
 			color: row.color,
 			dateOfBirth: row.dateOfBirth,
 			parentalConsentStatus:
@@ -77,7 +76,6 @@ export class AthleteRepository extends BaseRepository<
 				Pick<
 					AthleteInterface,
 					| 'userId'
-					| 'phone'
 					| 'dateOfBirth'
 					| 'parentalConsentStatus'
 					| 'parentEmail'
@@ -95,7 +93,6 @@ export class AthleteRepository extends BaseRepository<
 				email: data.email.toLowerCase(),
 				color: data.color,
 				...(data.userId !== undefined && { userId: data.userId }),
-				...(data.phone !== undefined && { phone: data.phone }),
 				...(data.dateOfBirth !== undefined && { dateOfBirth: data.dateOfBirth }),
 				...(data.parentalConsentStatus !== undefined && {
 					parentalConsentStatus: data.parentalConsentStatus
@@ -153,7 +150,7 @@ export class AthleteRepository extends BaseRepository<
 				AthleteInterface,
 				'teamId' | 'companyId' | 'firstName' | 'lastName' | 'email' | 'color'
 			> &
-				Partial<Pick<AthleteInterface, 'userId' | 'phone'>>
+				Partial<Pick<AthleteInterface, 'userId'>>
 		>
 	}): Promise<AthleteInterface[]> {
 		if (data.length === 0) {
@@ -169,8 +166,7 @@ export class AthleteRepository extends BaseRepository<
 				lastName: athlete.lastName,
 				email: athlete.email.toLowerCase(),
 				color: athlete.color,
-				...(athlete.userId !== undefined && { userId: athlete.userId }),
-				...(athlete.phone !== undefined && { phone: athlete.phone })
+				...(athlete.userId !== undefined && { userId: athlete.userId })
 			}))
 			const rows = await db.insert(athletes).values(values).returning()
 

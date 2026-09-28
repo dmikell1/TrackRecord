@@ -82,6 +82,10 @@ export class PushNotificationService {
 		})
 
 		if (devices.length === 0) {
+			this.reportingService.log({
+				message: 'Skipping Expo push — no device tokens registered for user',
+				userId
+			})
 			return
 		}
 
@@ -102,21 +106,21 @@ export class PushNotificationService {
 			}
 
 			const errorCode = ticket.details?.error
-			if (
-				errorCode === 'DeviceNotRegistered' ||
-				errorCode === 'InvalidCredentials'
-			) {
+			if (errorCode === 'DeviceNotRegistered') {
 				const token = devices[index]?.token
 				if (token) {
 					invalidTokens.push(token)
 				}
-			} else {
-				this.reportingService.reportError({
-					error: new Error(
-						`Expo push failed: ${ticket.message}${errorCode ? ` (${errorCode})` : ''}`
-					)
-				})
+				return
 			}
+
+			// InvalidCredentials usually means Expo is missing the iOS APNs push key.
+			// Do not delete tokens — fix credentials, then retries will succeed.
+			this.reportingService.reportError({
+				error: new Error(
+					`Expo push failed: ${ticket.message}${errorCode ? ` (${errorCode})` : ''}`
+				)
+			})
 		})
 
 		if (invalidTokens.length > 0) {

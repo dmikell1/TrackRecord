@@ -122,7 +122,6 @@ export const athletes = pgTable('athletes', {
 	firstName: varchar('first_name', { length: 45 }).notNull(),
 	lastName: varchar('last_name', { length: 45 }).notNull(),
 	email: varchar('email', { length: 255 }).notNull(),
-	phone: varchar('phone', { length: 30 }),
 	color: varchar('color', { length: 20 }).notNull().default('#3B82F6'),
 	dateOfBirth: timestamp('date_of_birth', { withTimezone: true }),
 	parentalConsentStatus: varchar('parental_consent_status', { length: 50 })

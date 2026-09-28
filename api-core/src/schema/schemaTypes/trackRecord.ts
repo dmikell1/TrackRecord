@@ -182,7 +182,6 @@ export const TrackRecord = gql`
 		firstName: String!
 		lastName: String!
 		email: String!
-		phone: String
 		color: String!
 		avatarUrl: String
 		dateOfBirth: DateTime
@@ -348,7 +347,6 @@ export const TrackRecord = gql`
 		firstName: String!
 		lastName: String!
 		email: String!
-		phone: String
 		color: String!
 		sendInvite: Boolean
 	}
@@ -364,7 +362,6 @@ export const TrackRecord = gql`
 		firstName: String
 		lastName: String
 		email: String
-		phone: String
 		color: String
 	}
 
@@ -387,7 +384,6 @@ export const TrackRecord = gql`
 		firstName: String!
 		lastName: String!
 		email: String!
-		phone: String
 	}
 
 	input BulkCreateAthletesInput {

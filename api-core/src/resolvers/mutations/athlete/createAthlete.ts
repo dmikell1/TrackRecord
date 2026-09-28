@@ -8,7 +8,6 @@ interface CreateAthleteArgs {
 		firstName: string
 		lastName: string
 		email: string
-		phone?: string
 		color: string
 		sendInvite?: boolean
 	}
@@ -28,8 +27,7 @@ export const createAthlete = async (
 				firstName: data.firstName,
 				lastName: data.lastName,
 				email: data.email,
-				color: data.color,
-				...(data.phone !== undefined && { phone: data.phone })
+				color: data.color
 			},
 			sendInvite: data.sendInvite ?? false
 		})
