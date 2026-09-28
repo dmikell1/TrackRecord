@@ -82,6 +82,10 @@ describe('PushNotificationService', () => {
 			})
 
 			expect(fetchMock).not.toHaveBeenCalled()
+			expect(mockReportingService.log).toHaveBeenCalledWith({
+				message: 'Skipping Expo push — no device tokens registered for user',
+				userId
+			})
 		})
 
 		it('sends expo push messages and removes invalid tokens', async () => {
@@ -129,6 +133,35 @@ describe('PushNotificationService', () => {
 			expect(mockRepository.deleteByTokens).toHaveBeenCalledWith({
 				tokens: ['ExponentPushToken[invalid]']
 			})
+		})
+
+		it('reports InvalidCredentials without deleting tokens', async () => {
+			const device = buildMockPushDeviceToken({
+				userId,
+				token: 'ExponentPushToken[device]'
+			})
+			mockRepository.findByUserId.mockResolvedValue([device])
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					data: [
+						{
+							status: 'error',
+							message: 'Unable to retrieve the App Store credentials',
+							details: { error: 'InvalidCredentials' }
+						}
+					]
+				})
+			})
+
+			await service.sendToUser({
+				userId,
+				title: 'TrackRecord',
+				body: 'Coach left a note.'
+			})
+
+			expect(mockRepository.deleteByTokens).not.toHaveBeenCalled()
+			expect(mockReportingService.reportError).toHaveBeenCalled()
 		})
 	})
 })

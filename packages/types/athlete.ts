@@ -10,7 +10,6 @@ export interface AthleteInterface {
 	firstName: string
 	lastName: string
 	email: string
-	phone: string | null
 	color: string
 	dateOfBirth: Date | null
 	parentalConsentStatus: ParentalConsentStatus
@@ -26,7 +25,6 @@ export interface BulkAthleteRowInput {
 	firstName: string
 	lastName: string
 	email: string
-	phone?: string
 }
 
 export interface BulkAthleteImportRowResult {

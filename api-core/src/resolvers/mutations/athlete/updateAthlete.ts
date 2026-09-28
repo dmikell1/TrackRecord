@@ -8,7 +8,6 @@ interface UpdateAthleteArgs {
 		firstName?: string
 		lastName?: string
 		email?: string
-		phone?: string
 		color?: string
 	}
 }
@@ -26,7 +25,6 @@ export const updateAthlete = async (
 				...(data.firstName !== undefined && { firstName: data.firstName }),
 				...(data.lastName !== undefined && { lastName: data.lastName }),
 				...(data.email !== undefined && { email: data.email }),
-				...(data.phone !== undefined && { phone: data.phone }),
 				...(data.color !== undefined && { color: data.color })
 			}
 		})

@@ -9,7 +9,6 @@ interface BulkCreateAthletesArgs {
 			firstName: string
 			lastName: string
 			email: string
-			phone?: string
 		}>
 		sendInvites?: boolean
 	}

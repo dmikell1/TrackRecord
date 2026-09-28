@@ -45,7 +45,7 @@ export class AthleteService {
 		sendInvite = false
 	}: {
 		data: Pick<AthleteInterface, 'teamId' | 'companyId' | 'firstName' | 'lastName' | 'email' | 'color'> &
-			Partial<Pick<AthleteInterface, 'userId' | 'phone'>>
+			Partial<Pick<AthleteInterface, 'userId'>>
 		sendInvite?: boolean
 	}): Promise<CreateAthleteResult> {
 		await this.entitlementService.assertCanAddAthletes({
@@ -103,16 +103,14 @@ export class AthleteService {
 			data: Pick<
 				AthleteInterface,
 				'teamId' | 'companyId' | 'firstName' | 'lastName' | 'email' | 'color'
-			> &
-				Partial<Pick<AthleteInterface, 'phone'>>
+			>
 		}> = []
 
 		const normalizedRows = athletes.map((athlete, index) => ({
 			row: index,
 			firstName: athlete.firstName.trim(),
 			lastName: athlete.lastName.trim(),
-			email: athlete.email.trim().toLowerCase(),
-			phone: athlete.phone?.trim() ?? ''
+			email: athlete.email.trim().toLowerCase()
 		}))
 
 		const candidateEmails = normalizedRows
@@ -173,8 +171,7 @@ export class AthleteService {
 					firstName: row.firstName,
 					lastName: row.lastName,
 					email: row.email,
-					color: pickRandomAthleteColor(),
-					...(row.phone.length > 0 && { phone: row.phone })
+					color: pickRandomAthleteColor()
 				}
 			})
 		}
@@ -235,7 +232,7 @@ export class AthleteService {
 
 	public async updateAthlete({ filter, data }: {
 		filter: AthleteFilter
-		data: Partial<Pick<AthleteInterface, 'firstName' | 'lastName' | 'email' | 'phone' | 'color'>>
+		data: Partial<Pick<AthleteInterface, 'firstName' | 'lastName' | 'email' | 'color'>>
 	}): Promise<AthleteInterface | null> {
 		return this.athleteRepository.update({ filter, data })
 	}
