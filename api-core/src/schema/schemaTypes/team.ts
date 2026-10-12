@@ -11,5 +11,6 @@ export const Team = gql`
 	type Team {
 		id: ID!
 		name: String!
+		companyId: ID!
 	}
 `
